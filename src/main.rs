@@ -14,9 +14,8 @@ fn main() -> anyhow::Result<()> {
     let editor = Editor::new();
     let mut timer = Timer::new();
 
+    let x:i32;
 
-
-    
     timer.start();
 
     terminal::enable_raw_mode()?;
