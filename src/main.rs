@@ -11,10 +11,8 @@ mod core;
 fn main() -> anyhow::Result<()> {
 
     let mut stdout = stdout();
-    let editor = Editor::new();
+    let mut editor = Editor::new();
     let mut timer = Timer::new();
-
-    let x:i32;
 
     timer.start();
 
