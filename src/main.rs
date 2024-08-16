@@ -14,6 +14,10 @@ fn main() -> anyhow::Result<()> {
     let mut editor = Editor::new();
     let mut timer = Timer::new();
 
+
+
+
+    
     timer.start();
 
     terminal::enable_raw_mode()?;
