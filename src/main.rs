@@ -15,9 +15,6 @@ fn main() -> anyhow::Result<()> {
     let mut timer = Timer::new();
 
 
-
-
-    
     timer.start();
 
     terminal::enable_raw_mode()?;
