@@ -1,8 +1,14 @@
-use std::{alloc::handle_alloc_error, io::Stdout};
+use std::io::Stdout;
 
-use crossterm::{event::{self, read, Event}, terminal, ExecutableCommand};
-use std::io::{stdout, Write};
-pub enum Action{//возможные события перемещения
+use crossterm::{cursor::MoveTo, event::{self, read}, QueueableCommand};
+use std::io::Write;
+
+use module::BarModule;
+
+// mods
+mod module; 
+
+enum Action{ // Possible movement actions
     Quit,
 
     MoveUp,
@@ -11,18 +17,17 @@ pub enum Action{//возможные события перемещения
     MoveRight,
 }
 
-pub enum Mode{//режимы
+enum Mode{ // interactions modes
     Normal,
     Insert,
 }
-//impl Mode{   он передумал делать так о оставил просто метод
-pub fn handel_event(mode:&Mode, ev: event::Event) -> anyhow::Result<Option<Action>>{
+
+fn handel_event(mode:&Mode, ev: event::Event) -> anyhow::Result<Option<Action>>{
     match mode {
         Mode::Normal => handle_normal_event(ev),
         Mode::Insert => handle_insert_event(ev),
     }
 }
-//}
 
 fn handle_normal_event(ev: event::Event) -> anyhow::Result<Option<Action>>{
     match ev {
@@ -41,16 +46,15 @@ fn handle_normal_event(ev: event::Event) -> anyhow::Result<Option<Action>>{
 fn handle_insert_event(ev: event::Event) -> anyhow::Result<Option<Action>>{
     unimplemented!("Insert event: {ev:?}");
 }
-pub trait BarModule {
-    fn enable(&self);
-    fn disable(&self);
-}
+
+
 
 pub struct Editor {
     pub cursor_x: u8,//сделал публичными 
     pub cursor_y: u8,//сделал публичными 
 
     current_file: String,
+    mode: Mode,
 
     enable_status_bar: bool,
     modules: Vec<Box<dyn BarModule>>
@@ -63,6 +67,8 @@ impl Editor {
             cursor_y: 0,
 
             current_file: "".to_string(),
+            mode: Mode::Normal,
+
             enable_status_bar: true,
             modules: Vec::new()
         }
@@ -74,10 +80,20 @@ impl Editor {
         }
     }
 
-    pub fn draw(&self, _stdout: &Stdout) {
+    pub fn start(&self, _stdout: &mut Stdout) -> anyhow::Result<()> {
+        self.init_modules(); // modules initialization
         loop {
+            _stdout.queue(MoveTo(self.cursor_x.into(), self.cursor_y.into()))?; // start cursor
+            _stdout.flush()?; // output sync with Stdout
 
+            if let Some(action) = handel_event(&self.mode, read()?)?{
+                match action {
+                    Action::Quit => break,
+                    _=>{}
+                }
+            }
         }
+        Ok(())
     }
 }
 
