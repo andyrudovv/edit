@@ -1,13 +1,15 @@
 use std::io::Stdout;
 
 use anyhow::Ok;
-use crossterm::{cursor::MoveTo, event::{self, read}, QueueableCommand};
+use crossterm::{cursor::MoveTo, event::{self, read}, terminal, QueueableCommand};
 use std::io::Write;
 
 use modules::BarModule;
+use status_bar::StatusBar;
 
 // mods
 mod modules; 
+mod status_bar;
 
 enum Action{ // Possible movement actions
     Quit,
@@ -58,14 +60,16 @@ fn handle_insert_event(ev: event::Event) -> anyhow::Result<Option<Action>> {
 }
 
 pub struct Editor {
-    pub cursor_x: u16, //сделал публичными 
-    pub cursor_y: u16, //сделал публичными 
+    pub cursor_x: u16,
+    pub cursor_y: u16,
 
-    current_file: String,
+    size: (u16, u16),
+
+    current_file: Option<String>,
     mode: Mode,
 
     enable_status_bar: bool,
-    modules: Vec<Box<dyn BarModule>>
+    status_bar: StatusBar
 }
 
 impl Editor {
@@ -74,23 +78,23 @@ impl Editor {
             cursor_x: 0,
             cursor_y: 0,
 
-            current_file: "".to_string(),
+            size: terminal::size().unwrap(),
+
+            current_file: None,
             mode: Mode::Normal,
 
             enable_status_bar: true,
-            modules: Vec::new()
-        }
-    }
-
-    pub fn init_modules(&mut self) {
-        for module in self.modules.iter_mut() {
-            module.enable();
+            status_bar: StatusBar::new()
         }
     }
 
     pub fn start(&mut self, _stdout: &mut Stdout) -> anyhow::Result<()> {
-        self.init_modules(); // modules initialization
+        //self.init_modules(); // modules initialization
         loop {
+            // drawings
+            self.draw(_stdout, self.size)?;
+            _stdout.flush()?;
+
             _stdout.queue(MoveTo(self.cursor_x.into(), self.cursor_y.into()))?; // start cursor
             _stdout.flush()?; // output sync with Stdout
 
@@ -105,13 +109,14 @@ impl Editor {
                 }
             }
         }
+        
+        Ok(())
+    }
+
+    fn draw(&mut self, _stdout: &mut Stdout, size: (u16, u16)) -> anyhow::Result<()> {
+
+        self.status_bar.draw(_stdout, size)?;
+
         Ok(())
     }
 }
-
-
-// stdout.queue(cursor::MoveTo(cx, cy));
-// match read()? {
-//      crossterm::event::KeyCode::Char('q') => break,
-//      crossterm::event::KeyCode::Char(v) => {print}
-//}
