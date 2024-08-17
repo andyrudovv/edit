@@ -11,7 +11,7 @@ fn main() -> anyhow::Result<()> {
 
     let mut stdout = stdout();
     let mut timer = Timer::new();
-    let editor = Editor::new();
+    let mut editor = Editor::new();
 
     timer.start();
 

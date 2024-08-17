@@ -1,5 +1,7 @@
 
+
+mod current_file_module;
 pub trait BarModule {
-    fn enable(&self);
-    fn disable(&self);
+    fn enable(&mut self);
+    fn disable(&mut self);
 }
