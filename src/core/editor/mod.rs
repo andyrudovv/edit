@@ -4,10 +4,10 @@ use anyhow::Ok;
 use crossterm::{cursor::MoveTo, event::{self, read}, QueueableCommand};
 use std::io::Write;
 
-use module::BarModule;
+use modules::BarModule;
 
 // mods
-mod module; 
+mod modules; 
 
 enum Action{ // Possible movement actions
     Quit,
