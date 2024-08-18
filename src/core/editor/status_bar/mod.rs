@@ -28,6 +28,7 @@ impl StatusBar {
         }
     }
 
+    // draw status bar and all modules in the terminal
     pub fn draw(&mut self, _stdout: &mut Stdout, size: (u16, u16)) -> anyhow::Result<()> {
         let mut bar: String = String::new();
 
@@ -70,16 +71,19 @@ impl StatusBar {
         Ok(())
     }
 
-    pub fn change_side(&mut self) {
+    pub fn change_side(&mut self) { // changes side of the status bar
         match self.side {
             Side::Bottom => self.side = Side::Top,
             Side::Top => self.side = Side::Bottom
         }
     }
-    pub fn change_background_colo(&mut self, new_color: &(u8, u8, u8)) {
+
+    // changes background color of status bar
+    pub fn change_background_color(&mut self, new_color: &(u8, u8, u8)) {
         self.background_color = new_color.clone();
     }
 
+    // moves cursor to the begining of status bar
     fn move_to_bar(&self, _stdout: &mut Stdout, size: (u16, u16)) -> anyhow::Result<()> {
         match self.side {
             Side::Bottom => {

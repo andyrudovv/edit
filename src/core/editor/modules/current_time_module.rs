@@ -2,7 +2,7 @@ use std::io::Stdout;
 use chrono::prelude::*;
 
 use super::BarModule;
-use super::Rgb;
+use super::Rgb; // Rgb = (u8, u8, u8)
 
 pub struct CurrentTimeModule {
     updatable: bool,
@@ -33,11 +33,11 @@ impl CurrentTimeModule {
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self) { // updates time
         self.current_time = Local::now();
     }
 
-    pub fn get_time_string(&mut self) -> String {
+    pub fn get_time_string(&mut self) -> String { // returns updated time in right format
         
         self.update();
 
