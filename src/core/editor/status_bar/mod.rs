@@ -1,6 +1,6 @@
 use std::io::{Stdout, Write};
 
-use crossterm::{cursor::MoveTo, style::{self, Color, Stylize}, terminal, QueueableCommand};
+use crossterm::{cursor::MoveTo, style::{self, Color, Stylize}, QueueableCommand};
 
 // adding all list of modules
 use super::modules::{BarModule, get_modules};
