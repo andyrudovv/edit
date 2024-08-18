@@ -6,6 +6,8 @@ use current_time_module::CurrentTimeModule;
 pub mod current_file_module;
 pub mod current_time_module;
 
+pub type Rgb = (u8, u8, u8);
+
 pub trait BarModule {
     fn enable(&mut self);
     fn disable(&mut self);

@@ -4,7 +4,6 @@ use anyhow::Ok;
 use crossterm::{cursor::MoveTo, event::{self, read}, terminal, QueueableCommand};
 use std::io::Write;
 
-use modules::BarModule;
 use status_bar::StatusBar;
 
 // mods
