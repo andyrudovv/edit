@@ -1,7 +1,7 @@
 use std::io::Stdout;
 
 use anyhow::Ok;
-use crossterm::{cursor::MoveTo, event::{self, read}, terminal, QueueableCommand};
+use crossterm::{cursor::MoveTo, event::{self, read}, style::Print, terminal, QueueableCommand};
 use std::io::Write;
 
 use status_bar::StatusBar;
@@ -18,7 +18,9 @@ enum Action{ // Possible movement actions
     MoveLeft,
     MoveRight,
 
-    Typing(char)
+    Typing(char),
+
+    SetMode(Mode)
 }
 
 enum Mode{ // interactions modes
@@ -41,6 +43,7 @@ fn handle_normal_event(ev: event::Event) -> anyhow::Result<Option<Action>>{
             event::KeyCode::Down | event::KeyCode::Char('j') => Ok(Some(Action::MoveDown)),
             event::KeyCode::Left | event::KeyCode::Char('h') => Ok(Some(Action::MoveLeft)),
             event::KeyCode::Right | event::KeyCode::Char('l') => Ok(Some(Action::MoveRight)),
+            event::KeyCode::Char('i') => Ok(Some(Action::SetMode(Mode::Insert))),
             _ => Ok(None),
         },
         _ => Ok(None),
@@ -52,6 +55,7 @@ fn handle_insert_event(ev: event::Event) -> anyhow::Result<Option<Action>> {
     match ev {
         event::Event::Key(event) => match event.code {
             event::KeyCode::Char(v) => Ok(Some(Action::Typing(v))),
+            event::KeyCode::Esc => Ok(Some(Action::SetMode(Mode::Normal))),
             _ => Ok(None),
         },
         _ => Ok(None),
@@ -100,11 +104,18 @@ impl Editor {
             if let Some(action) = handel_event(&self.mode, read()?)? {
                 match action {
                     Action::Quit => break,
+
+                    Action::SetMode(new_mode) => self.mode = new_mode,
+
                     Action::MoveUp => self.cursor_y = self.cursor_y.saturating_sub(1),
                     Action::MoveDown => self.cursor_y = self.cursor_y.saturating_add(1),
                     Action::MoveRight => self.cursor_x = self.cursor_x.saturating_add(1),
                     Action::MoveLeft => self.cursor_x = self.cursor_x.saturating_sub(1),
-                    _ => {}
+
+                    Action::Typing(v) => {
+                        _stdout.queue(Print(v))?;
+                        self.cursor_x = self.cursor_x.saturating_add(1);
+                    },
                 }
             }
         }
