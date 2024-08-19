@@ -19,6 +19,7 @@ enum Action{ // Possible movement actions
     MoveRight,
 
     Typing(char),
+    EnterKey,
 
     SetMode(Mode)
 }
@@ -43,6 +44,9 @@ fn handle_normal_event(ev: event::Event) -> anyhow::Result<Option<Action>>{
             event::KeyCode::Down | event::KeyCode::Char('j') => Ok(Some(Action::MoveDown)),
             event::KeyCode::Left | event::KeyCode::Char('h') => Ok(Some(Action::MoveLeft)),
             event::KeyCode::Right | event::KeyCode::Char('l') => Ok(Some(Action::MoveRight)),
+
+            event::KeyCode::Enter => Ok(Some(Action::EnterKey)),
+
             event::KeyCode::Char('i') => Ok(Some(Action::SetMode(Mode::Insert))),
             _ => Ok(None),
         },
@@ -56,6 +60,7 @@ fn handle_insert_event(ev: event::Event) -> anyhow::Result<Option<Action>> {
         event::Event::Key(event) => match event.code {
             event::KeyCode::Char(v) => Ok(Some(Action::Typing(v))),
             event::KeyCode::Esc => Ok(Some(Action::SetMode(Mode::Normal))),
+            event::KeyCode::Enter => Ok(Some(Action::EnterKey)),
             _ => Ok(None),
         },
         _ => Ok(None),
@@ -112,10 +117,15 @@ impl Editor {
                     Action::MoveRight => self.cursor_x = self.cursor_x.saturating_add(1),
                     Action::MoveLeft => self.cursor_x = self.cursor_x.saturating_sub(1),
 
+
                     Action::Typing(v) => {
                         _stdout.queue(Print(v))?;
-                        self.cursor_x = self.cursor_x.saturating_add(1);
+                        self.cursor_x = self.cursor_x.saturating_add(1); 
                     },
+                    Action::EnterKey => {
+                        self.cursor_y = self.cursor_y.saturating_add(1);
+                    }
+                    _ => {}
                 }
             }
         }
