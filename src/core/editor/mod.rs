@@ -83,6 +83,7 @@ fn handle_command_event(ev: event::Event) -> anyhow::Result<Option<Action>> {
             event::KeyCode::Char(v) => Ok(Some(Action::Typing(v))),
             event::KeyCode::Esc => Ok(Some(Action::SetMode(Mode::Normal))),
             event::KeyCode::Enter => Ok(Some(Action::EnterKey)),
+            event::KeyCode::Backspace => Ok(Some(Action::Backspace)),
             _ => Ok(None),
         },
         _ => Ok(None),
@@ -133,7 +134,13 @@ impl Editor {
                 match action {
                     Action::Quit => break,
 
-                    Action::SetMode(new_mode) => self.mode = new_mode,
+                    Action::SetMode(new_mode) => {
+                        if new_mode == Mode::Command{
+                            self.cursor_x = 1; 
+                            self.cursor_y = self.size.1;
+                        }
+                        self.mode = new_mode;
+                    },
 
                     Action::MoveUp => self.cursor_y = self.cursor_y.saturating_sub(1),
                     Action::MoveDown => self.cursor_y = self.cursor_y.saturating_add(1),
@@ -144,6 +151,10 @@ impl Editor {
                     Action::Typing(v) => {
                         _stdout.queue(Print(v))?;
                         self.cursor_x = self.cursor_x.saturating_add(1);
+
+                        if self.mode == Mode::Command {
+                            self.command_bar.command.push(v);
+                        }
                     },
                     Action::EnterKey => {
                         self.cursor_y = self.cursor_y.saturating_add(1);
@@ -152,8 +163,13 @@ impl Editor {
                         self.cursor_x = self.cursor_x.saturating_add(4);
                     },
                     Action::Backspace => {
-                        _stdout.queue(Print(' '))?;
-                        self.cursor_x = self.cursor_x.saturating_sub(1);
+                        if self.cursor_x > 1 {
+                            _stdout.queue(Print(' '))?;
+                            self.cursor_x = self.cursor_x.saturating_sub(1);
+                            if self.mode == Mode::Command {
+                                self.command_bar.command.pop();
+                            }
+                        }
                     },
                     _ => {}
                 }
@@ -166,7 +182,8 @@ impl Editor {
     fn draw(&mut self, _stdout: &mut Stdout, size: (u16, u16)) -> anyhow::Result<()> {
         self.status_bar.draw(_stdout, size)?;
         match self.mode {
-            Mode::Command => {self.command_bar.draw(_stdout, size, &mut self.cursor_x,&mut self.cursor_y)?; return Ok(())},
+            Mode::Command => {self.command_bar.draw(_stdout, size)?; 
+                return Ok(())},
             _ => {self.command_bar.clean(_stdout, size)?; return Ok(())},
         }
     }

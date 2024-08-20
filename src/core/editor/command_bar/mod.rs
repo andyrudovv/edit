@@ -8,19 +8,19 @@ use super::{modules::{get_modules, BarModule}, Editor, Mode};
 
 pub struct CommandBar {
     background_color: (u8, u8, u8),
-    command: String
+    pub command: String
 }
 
 impl CommandBar {
     pub fn new() -> Self {
         Self {
-            command: "".to_string(),
+            command: ":".to_string(),
             background_color: (255, 255, 255)
         }
     }
 
     // draw status bar and all modules in the terminal
-    pub fn draw(&mut self, _stdout: &mut Stdout, size: (u16, u16), cursor_x: &mut u16, cursor_y: &mut u16) -> anyhow::Result<()> {
+    pub fn draw(&mut self, _stdout: &mut Stdout, size: (u16, u16)) -> anyhow::Result<()> {
         _stdout.queue(MoveTo(0, size.1))?;
         _stdout.queue(style::PrintStyledContent(
             (" ").repeat((size.0) as usize).on(
@@ -31,11 +31,23 @@ impl CommandBar {
                 })
         ))?;
         _stdout.flush()?;
-
         _stdout.queue(MoveTo(0, size.1))?;
+
+        _stdout.queue(style::PrintStyledContent(
+            self.command.as_str().on(
+                Color::Rgb { 
+                    r: self.background_color.0,
+                    g: self.background_color.1, 
+                    b: self.background_color.2 
+                })
+                .with(Color::Rgb { 
+                    r: 102, 
+                    g: 0, 
+                    b: 51 
+                })
+            ))?;
+
         _stdout.flush()?;
-        *cursor_x = 0;
-        *cursor_y = size.1;
         Ok(())
     }
 
