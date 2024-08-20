@@ -99,7 +99,7 @@ impl Editor {
 
     pub fn start(&mut self, _stdout: &mut Stdout) -> anyhow::Result<()> {
         loop {
-            //self.status_bar.get_editor_info(); HEEEEREEEEEEEEEE HEREEEEEEEEE ЗЗЗДЕЕЕЕЕСЬ
+            self.status_bar.get_editor_info(self.mode.clone());
             // drawings
             self.draw(_stdout, self.size)?;
             _stdout.flush()?;

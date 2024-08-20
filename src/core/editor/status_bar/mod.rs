@@ -83,9 +83,9 @@ impl StatusBar {
         self.background_color = new_color.clone();
     }
 
-    pub fn get_editor_info(&mut self, info: (Mode, (u16, u16))) {
+    pub fn get_editor_info(&mut self, info:Mode) {
         for module in self.modules.iter_mut(){
-            //module.get_editor_info(info);
+            module.get_editor_info(info);
         }
     }
 
