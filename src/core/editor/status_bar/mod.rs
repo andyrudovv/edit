@@ -1,15 +1,15 @@
-use std::io::{Stdout, Write};
+use std::{borrow::BorrowMut, io::{Stdout, Write}};
 
 use crossterm::{cursor::MoveTo, style::{self, Color, Stylize}, QueueableCommand};
 
 // adding all list of modules
-use super::modules::{BarModule, get_modules};
+use super::{modules::{get_modules, BarModule}, Editor, Mode};
 
+#[derive(Clone, Copy)]
 pub enum Side {
     Top,
     Bottom
 }
-
 pub struct StatusBar {
     sepatator: &'static str,
     modules: Vec<Box<dyn BarModule>>,
@@ -81,6 +81,12 @@ impl StatusBar {
     // changes background color of status bar
     pub fn change_background_color(&mut self, new_color: &(u8, u8, u8)) {
         self.background_color = new_color.clone();
+    }
+
+    pub fn get_editor_info(&mut self, info: (Mode, (u16, u16))) {
+        for module in self.modules.iter_mut(){
+            //module.get_editor_info(info);
+        }
     }
 
     // moves cursor to the begining of status bar

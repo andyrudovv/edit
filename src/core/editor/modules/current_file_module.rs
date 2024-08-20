@@ -18,6 +18,12 @@ impl BarModule for CurrentFileModule {
     fn give_display(&mut self) -> String {
         self.get_path()
     }
+    
+    fn get_editor_info(&mut self, info: (&crate::core::editor::Mode, (u16, u16))) {
+        todo!()
+    }
+    
+   
 }
 
 impl CurrentFileModule {

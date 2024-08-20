@@ -22,6 +22,10 @@ impl BarModule for CurrentTimeModule {
     fn give_display(&mut self) -> String {
         self.get_time_string()
     }
+    
+    fn get_editor_info(&mut self, info: (&crate::core::editor::Mode, (u16, u16))) {
+        todo!()
+    }
 }
 
 impl CurrentTimeModule {
