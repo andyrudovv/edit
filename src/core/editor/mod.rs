@@ -5,10 +5,12 @@ use crossterm::{cursor::MoveTo, event::{self, read}, style::Print, terminal, Que
 use std::io::Write;
 
 use status_bar::StatusBar;
+use command_bar::CommandBar;
 
 // mods
 mod modules; 
 mod status_bar;
+mod command_bar;
 
 enum Action{ // Possible movement actions
     Quit,
@@ -20,20 +22,24 @@ enum Action{ // Possible movement actions
 
     Typing(char),
     EnterKey,
+    TabKey,
+    Backspace,
 
     SetMode(Mode)
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 enum Mode{ // interactions modes
     Normal,
     Insert,
+    Command,
 }
 
 fn handel_event(mode:&Mode, ev: event::Event) -> anyhow::Result<Option<Action>>{
     match mode {
         Mode::Normal => handle_normal_event(ev),
         Mode::Insert => handle_insert_event(ev),
+        Mode::Command => handle_command_event(ev),
     }
 }
 
@@ -49,6 +55,7 @@ fn handle_normal_event(ev: event::Event) -> anyhow::Result<Option<Action>>{
             event::KeyCode::Enter => Ok(Some(Action::EnterKey)),
 
             event::KeyCode::Char('i') => Ok(Some(Action::SetMode(Mode::Insert))),
+            event::KeyCode::Char('w') => {Ok(Some(Action::SetMode(Mode::Command)))},
             _ => Ok(None),
         },
         _ => Ok(None),
@@ -62,12 +69,25 @@ fn handle_insert_event(ev: event::Event) -> anyhow::Result<Option<Action>> {
             event::KeyCode::Char(v) => Ok(Some(Action::Typing(v))),
             event::KeyCode::Esc => Ok(Some(Action::SetMode(Mode::Normal))),
             event::KeyCode::Enter => Ok(Some(Action::EnterKey)),
+            event::KeyCode::Tab => Ok(Some(Action::TabKey)),
+            event::KeyCode::Backspace => Ok(Some(Action::Backspace)),
             _ => Ok(None),
         },
         _ => Ok(None),
     }
 }
 
+fn handle_command_event(ev: event::Event) -> anyhow::Result<Option<Action>> {
+    match ev {
+        event::Event::Key(event) => match event.code {
+            event::KeyCode::Char(v) => Ok(Some(Action::Typing(v))),
+            event::KeyCode::Esc => Ok(Some(Action::SetMode(Mode::Normal))),
+            event::KeyCode::Enter => Ok(Some(Action::EnterKey)),
+            _ => Ok(None),
+        },
+        _ => Ok(None),
+    }
+}
 pub struct Editor {
     pub cursor_x: u16,
     pub cursor_y: u16,
@@ -78,7 +98,8 @@ pub struct Editor {
     mode: Mode,
 
     enable_status_bar: bool,
-    status_bar: StatusBar
+    status_bar: StatusBar,
+    command_bar: CommandBar
 }
 
 impl Editor {
@@ -93,7 +114,8 @@ impl Editor {
             mode: Mode::Normal,
 
             enable_status_bar: true,
-            status_bar: StatusBar::new()
+            status_bar: StatusBar::new(),
+            command_bar: CommandBar::new()
         }
     }
 
@@ -121,11 +143,18 @@ impl Editor {
 
                     Action::Typing(v) => {
                         _stdout.queue(Print(v))?;
-                        self.cursor_x = self.cursor_x.saturating_add(1); 
+                        self.cursor_x = self.cursor_x.saturating_add(1);
                     },
                     Action::EnterKey => {
                         self.cursor_y = self.cursor_y.saturating_add(1);
-                    }
+                    },
+                    Action::TabKey => {
+                        self.cursor_x = self.cursor_x.saturating_add(4);
+                    },
+                    Action::Backspace => {
+                        _stdout.queue(Print(' '))?;
+                        self.cursor_x = self.cursor_x.saturating_sub(1);
+                    },
                     _ => {}
                 }
             }
@@ -135,9 +164,10 @@ impl Editor {
     }
 
     fn draw(&mut self, _stdout: &mut Stdout, size: (u16, u16)) -> anyhow::Result<()> {
-
         self.status_bar.draw(_stdout, size)?;
-
-        Ok(())
+        match self.mode {
+            Mode::Command => {self.command_bar.draw(_stdout, size, &mut self.cursor_x,&mut self.cursor_y)?; return Ok(())},
+            _ => {self.command_bar.clean(_stdout, size)?; return Ok(())},
+        }
     }
 }

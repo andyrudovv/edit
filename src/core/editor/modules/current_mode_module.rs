@@ -39,6 +39,7 @@ impl CurrentModeModule {
         match self.current_mode {
             Mode::Normal => "Normal".to_string(),
             Mode::Insert => "Insert".to_string(),
+            Mode::Command => "Command".to_string(),
         }
     }
 }

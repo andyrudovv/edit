@@ -10,6 +10,7 @@ pub enum Side {
     Top,
     Bottom
 }
+
 pub struct StatusBar {
     sepatator: &'static str,
     modules: Vec<Box<dyn BarModule>>,
@@ -31,7 +32,6 @@ impl StatusBar {
     // draw status bar and all modules in the terminal
     pub fn draw(&mut self, _stdout: &mut Stdout, size: (u16, u16)) -> anyhow::Result<()> {
         let mut bar: String = String::new();
-
         for module in self.modules.iter_mut() {
             let displayed_string = module.give_display();
             bar.push_str(&displayed_string.as_str());
@@ -39,7 +39,7 @@ impl StatusBar {
             bar.push_str(self.sepatator);
             bar.push(' ');
         }
-
+    
         self.move_to_bar(_stdout, size)?;
 
         _stdout.queue(style::PrintStyledContent(
@@ -54,23 +54,27 @@ impl StatusBar {
 
         self.move_to_bar(_stdout, size)?;
         _stdout.queue(style::PrintStyledContent(
-            bar.as_str().on(
-                Color::Rgb { 
-                    r: self.background_color.0,
-                    g: self.background_color.1, 
-                    b: self.background_color.2 
-                })
-                .with(Color::Rgb { 
-                    r: 102, 
-                    g: 0, 
-                    b: 51 
-                })
+        bar.as_str().on(
+            Color::Rgb { 
+                r: self.background_color.0,
+                g: self.background_color.1, 
+                b: self.background_color.2 
+            })
+            .with(Color::Rgb { 
+                r: 102, 
+                g: 0, 
+                b: 51 
+            })
         ))?;
+        
+
+        
         _stdout.flush()?;
 
         Ok(())
     }
 
+    
     pub fn change_side(&mut self) { // changes side of the status bar
         match self.side {
             Side::Bottom => self.side = Side::Top,
@@ -93,12 +97,12 @@ impl StatusBar {
     fn move_to_bar(&self, _stdout: &mut Stdout, size: (u16, u16)) -> anyhow::Result<()> {
         match self.side {
             Side::Bottom => {
-                _stdout.queue(MoveTo(0, size.1-1))?;
+                _stdout.queue(MoveTo(0, size.1-2))?;
             },
             Side::Top => {
                 _stdout.queue(MoveTo(0, 0))?;
             }
-        }
+        } 
         Ok(())
     }
 }
