@@ -21,8 +21,8 @@ impl BarModule for CurrentModeModule {
         self.get_mode_string()
     }
     
-    fn get_editor_info(&mut self, info: crate::core::editor::Mode) {
-        self.current_mode = info;
+    fn get_editor_info(&mut self, info: (crate::core::editor::Mode, &String)) {
+        self.current_mode = info.0;
     }
     
 }

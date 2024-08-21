@@ -15,8 +15,8 @@ pub trait BarModule {
     fn disable(&mut self);
 
     fn give_display(&mut self) -> String;
-
-    fn get_editor_info(&mut self, info: Mode);
+                                      //(Mode, File name)
+    fn get_editor_info(&mut self, info: (Mode, &String)); 
 }
 
 

@@ -1,19 +1,22 @@
-use std::io::Stdout;
+use std::{io::{stdout, Stdout}, ops::Deref};
 
 use anyhow::Ok;
-use crossterm::{cursor::MoveTo, event::{self, read}, style::Print, terminal, QueueableCommand};
+use crossterm::{cursor::MoveTo, event::{self, read}, style::{Color, Print, PrintStyledContent, Stylize}, terminal, ExecutableCommand, QueueableCommand};
+use viewport::Viewport;
 use std::io::Write;
 
 use status_bar::StatusBar;
 use command_bar::CommandBar;
 
+use super::{buffer::Buffer, time::Timer};
+
 // mods
 mod modules; 
 mod status_bar;
 mod command_bar;
+mod viewport;
 
 enum Action{ // Possible movement actions
-    Quit,
 
     MoveUp,
     MoveDown,
@@ -21,6 +24,7 @@ enum Action{ // Possible movement actions
     MoveRight,
 
     Typing(char),
+
     EnterKey,
     TabKey,
     Backspace,
@@ -46,7 +50,8 @@ fn handel_event(mode:&Mode, ev: event::Event) -> anyhow::Result<Option<Action>>{
 fn handle_normal_event(ev: event::Event) -> anyhow::Result<Option<Action>>{
     match ev {
         event::Event::Key(event) => match event.code {
-            event::KeyCode::Char('q') => Ok(Some(Action::Quit)),
+            event::KeyCode::Char(':') => Ok(Some(Action::SetMode(Mode::Command))),
+
             event::KeyCode::Up | event::KeyCode::Char('k') => Ok(Some(Action::MoveUp)),
             event::KeyCode::Down | event::KeyCode::Char('j') => Ok(Some(Action::MoveDown)),
             event::KeyCode::Left | event::KeyCode::Char('h') => Ok(Some(Action::MoveLeft)),
@@ -55,7 +60,6 @@ fn handle_normal_event(ev: event::Event) -> anyhow::Result<Option<Action>>{
             event::KeyCode::Enter => Ok(Some(Action::EnterKey)),
 
             event::KeyCode::Char('i') => Ok(Some(Action::SetMode(Mode::Insert))),
-            event::KeyCode::Char('w') => {Ok(Some(Action::SetMode(Mode::Command)))},
             _ => Ok(None),
         },
         _ => Ok(None),
@@ -63,7 +67,6 @@ fn handle_normal_event(ev: event::Event) -> anyhow::Result<Option<Action>>{
 }
 
 fn handle_insert_event(ev: event::Event) -> anyhow::Result<Option<Action>> {
-    //unimplemented!("Insert event: {ev:?}");
     match ev {
         event::Event::Key(event) => match event.code {
             event::KeyCode::Char(v) => Ok(Some(Action::Typing(v))),
@@ -84,6 +87,7 @@ fn handle_command_event(ev: event::Event) -> anyhow::Result<Option<Action>> {
             event::KeyCode::Esc => Ok(Some(Action::SetMode(Mode::Normal))),
             event::KeyCode::Enter => Ok(Some(Action::EnterKey)),
             event::KeyCode::Backspace => Ok(Some(Action::Backspace)),
+
             _ => Ok(None),
         },
         _ => Ok(None),
@@ -93,6 +97,8 @@ pub struct Editor {
     pub cursor_x: u16,
     pub cursor_y: u16,
 
+    running: bool,
+
     size: (u16, u16),
 
     current_file: Option<String>,
@@ -100,29 +106,68 @@ pub struct Editor {
 
     enable_status_bar: bool,
     status_bar: StatusBar,
-    command_bar: CommandBar
+    command_bar: CommandBar,
+
+    buffer: Box<Buffer>,
+    viewport: Viewport
 }
 
 impl Editor {
-    pub fn new() -> Self {
+    pub fn new(buf: Buffer) -> Self {
+
+        let _size = terminal::size().unwrap();
+
         Self {
             cursor_x: 0,
             cursor_y: 0,
 
-            size: terminal::size().unwrap(),
+            running: true,
+
+            size: _size,
 
             current_file: None,
             mode: Mode::Normal,
 
             enable_status_bar: true,
             status_bar: StatusBar::new(),
-            command_bar: CommandBar::new()
+            command_bar: CommandBar::new(),
+
+            buffer: Box::new(buf),
+            viewport: Viewport::new(_size)
         }
     }
 
-    pub fn start(&mut self, _stdout: &mut Stdout) -> anyhow::Result<()> {
-        loop {
-            self.status_bar.get_editor_info(self.mode.clone());
+    pub fn start(&mut self) -> anyhow::Result<()> {
+
+        let mut _stdout = stdout();
+
+        let mut timer = Timer::new();
+        timer.start();
+
+        terminal::enable_raw_mode()?;
+        _stdout.execute(terminal::EnterAlternateScreen)?; // Enter to the upper terminal layer 
+        _stdout.execute(terminal::Clear(terminal::ClearType::All))?; // Clear new terminal layer
+
+
+
+        self.mainloop(&mut _stdout)?;
+
+
+        _stdout.execute(terminal::LeaveAlternateScreen)?; // Leave upper terminal layer
+        terminal::disable_raw_mode()?;
+
+        timer.end();
+
+        let duration_sec = timer.get_duration_sec();
+        println!("~{} took", duration_sec);
+
+        Ok(())
+    }
+
+    // main loop of logic
+    fn mainloop(&mut self, _stdout: &mut Stdout) -> anyhow::Result<()> {
+        while self.running {
+            self.status_bar.get_editor_info((self.mode.clone(), &self.buffer.file.clone().unwrap_or("No such file or directory".to_string())));
             // drawings
             self.draw(_stdout, self.size)?;
             _stdout.flush()?;
@@ -132,8 +177,6 @@ impl Editor {
 
             if let Some(action) = handel_event(&self.mode, read()?)? {
                 match action {
-                    Action::Quit => break,
-
                     Action::SetMode(new_mode) => {
                         if new_mode == Mode::Command{
                             self.cursor_x = 1; 
@@ -151,40 +194,99 @@ impl Editor {
                     Action::Typing(v) => {
                         _stdout.queue(Print(v))?;
                         self.cursor_x = self.cursor_x.saturating_add(1);
-
+                        
+                        // add char to command in command mode
                         if self.mode == Mode::Command {
                             self.command_bar.command.push(v);
                         }
                     },
                     Action::EnterKey => {
-                        self.cursor_y = self.cursor_y.saturating_add(1);
+                        self.handle_enter();
                     },
                     Action::TabKey => {
                         self.cursor_x = self.cursor_x.saturating_add(4);
                     },
                     Action::Backspace => {
-                        if self.cursor_x > 1 {
-                            _stdout.queue(Print(' '))?;
-                            self.cursor_x = self.cursor_x.saturating_sub(1);
-                            if self.mode == Mode::Command {
-                                self.command_bar.command.pop();
-                            }
-                        }
+                        self.backspace_limiter(_stdout)?; // bounding 
                     },
-                    _ => {}
                 }
             }
         }
         
         Ok(())
     }
+    fn backspace_limiter(&mut self, _stdout: &mut Stdout) -> anyhow::Result<()> {
+        match self.mode {
+            Mode::Command => {
+                if self.cursor_x > 1 {
+                    _stdout.queue(MoveTo(self.cursor_x.saturating_sub(1), self.cursor_y))?;
+                    _stdout.queue(PrintStyledContent(
+                        " ".on(Color::Rgb {
+                                r: 255,
+                                g: 255,
+                                b: 255
+                            })
+                        )
+                    )?;
+                    self.cursor_x = self.cursor_x.saturating_sub(1);
+                    _stdout.flush()?;
+                    if self.mode == Mode::Command {
+                        self.command_bar.command.pop();
+                    }
+                }
+            },
+            Mode::Insert => {
+                _stdout.queue(MoveTo(self.cursor_x.saturating_sub(1), self.cursor_y))?;
+                _stdout.queue(Print(" "))?;
+                self.cursor_x = self.cursor_x.saturating_sub(1);
+                _stdout.flush()?;
+            },
+            _ => {}
+        }
+
+        Ok(())
+    }
+
+    fn handle_enter(&mut self) {
+        match self.mode {
+            Mode::Command => {
+                self.execute_command(self.command_bar.command.clone());
+                self.command_bar.command = String::new();
+                self.command_bar.command.push(':');
+            },
+            Mode::Insert => {
+                self.cursor_y = self.cursor_y.saturating_add(1);
+                self.cursor_x = 0;
+            },
+            Mode::Normal => {
+                self.cursor_y = self.cursor_y.saturating_add(1);
+            }
+        }
+    }
+
+    fn execute_command(&mut self, command: String) {
+        if command.trim().to_string() == ":q".to_string() {
+            self.running = false;
+        }
+    }
 
     fn draw(&mut self, _stdout: &mut Stdout, size: (u16, u16)) -> anyhow::Result<()> {
+        self.draw_buffer(_stdout)?;
         self.status_bar.draw(_stdout, size)?;
         match self.mode {
             Mode::Command => {self.command_bar.draw(_stdout, size)?; 
                 return Ok(())},
             _ => {self.command_bar.clean(_stdout, size)?; return Ok(())},
         }
+    }
+
+    pub fn draw_buffer(&mut self, _stdout: &mut Stdout) -> anyhow::Result<()> {
+
+        for (i, line) in self.buffer.lines.iter().enumerate() {
+            _stdout.queue(MoveTo(0, i as u16))?;
+            _stdout.queue(Print(line))?;
+        }
+
+        Ok(())
     }
 }

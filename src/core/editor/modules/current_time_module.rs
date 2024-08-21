@@ -23,7 +23,7 @@ impl BarModule for CurrentTimeModule {
         self.get_time_string()
     }
     
-    fn get_editor_info(&mut self, info: crate::core::editor::Mode) {
+    fn get_editor_info(&mut self, info: (crate::core::editor::Mode, &String)) {
     }
 }
 

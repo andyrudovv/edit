@@ -4,6 +4,7 @@ use super::BarModule;
 
 pub struct CurrentFileModule {
     path: String,
+    file: String,
     enable: bool
 }
 
@@ -19,21 +20,21 @@ impl BarModule for CurrentFileModule {
         self.get_path()
     }
     
-    fn get_editor_info(&mut self, info: crate::core::editor::Mode) {
+    fn get_editor_info(&mut self, info: (crate::core::editor::Mode, &String)) {
+        self.file = info.1.clone();
     }
-    
-   
 }
 
 impl CurrentFileModule {
     pub fn new() -> Self {
         Self {
-            path: "src/main.rs".to_string(),
+            path: " ".to_string(),
+            file: " ".to_string(),
             enable: false
         }
     }
     pub fn get_path(&self) -> String {
-        self.path.clone()
+        self.file.clone()
     }
 
     pub fn get_file_name(&self) -> &str {
