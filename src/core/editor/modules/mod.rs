@@ -10,13 +10,15 @@ pub mod current_mode_module;
 
 pub type Rgb = (u8, u8, u8);
 
+pub type Info = (Mode, Box<String>);
+
 pub trait BarModule {
     fn enable(&mut self);
     fn disable(&mut self);
 
     fn give_display(&mut self) -> String;
                                       //(Mode, File name)
-    fn get_editor_info(&mut self, info: (Mode, &String)); 
+    fn get_editor_info(&mut self, info: Info); 
 }
 
 

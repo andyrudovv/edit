@@ -3,7 +3,7 @@ use std::{borrow::BorrowMut, io::{Stdout, Write}};
 use crossterm::{cursor::MoveTo, style::{self, Color, Stylize}, QueueableCommand};
 
 // adding all list of modules
-use super::{modules::{get_modules, BarModule}, Editor, Mode};
+use super::modules::{get_modules, BarModule, Info};
 
 #[derive(Clone, Copy)]
 pub enum Side {
@@ -87,9 +87,10 @@ impl StatusBar {
         self.background_color = new_color.clone();
     }
 
-    pub fn get_editor_info(&mut self, info: (Mode, &String)) {
+
+    pub fn get_editor_info(&mut self, info: Info) {
         for module in self.modules.iter_mut(){
-            module.get_editor_info(info);
+            module.get_editor_info((info.0, info.1.clone()));
         }
     }
 
