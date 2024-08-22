@@ -25,4 +25,8 @@ impl Buffer {
         }
         None
     }
+
+    pub fn get_file_lenght(&self) -> usize {
+        self.lines.len()
+    }
 }

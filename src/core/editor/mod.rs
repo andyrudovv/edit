@@ -1,7 +1,7 @@
 use std::{any, borrow::Borrow, io::{stdout, Stdout}};
 
 use anyhow::Ok;
-use crossterm::{cursor::MoveTo, event::{self, read}, style::{Color, Print, PrintStyledContent, Stylize}, terminal, ExecutableCommand, QueueableCommand};
+use crossterm::{cursor::{self, MoveTo}, event::{self, read}, style::{Color, Print, PrintStyledContent, Stylize}, terminal, ExecutableCommand, QueueableCommand};
 use std::io::Write;
 
 use status_bar::StatusBar;
@@ -57,6 +57,7 @@ pub struct Editor {
     status_bar: StatusBar,
 
     command_bar: CommandBar,
+    scrolling_padding: u16
 
 }
 
@@ -72,15 +73,18 @@ impl Editor {
         terminal::enable_raw_mode()?;
         _stdout
             .execute(terminal::EnterAlternateScreen)? // Enter to the upper terminal layer 
-            .execute(terminal::Clear(terminal::ClearType::All))?; // Clear new terminal layer
+            .execute(terminal::Clear(terminal::ClearType::All))?// Clear new terminal layer
+            .execute(cursor::SetCursorStyle::BlinkingBar)?
+            .execute(cursor::DisableBlinking)?;
 
         let _size = terminal::size().unwrap();
-
+        
 
         Ok(Editor {
                 buffer: buf,
                 viewport_left: 0,
                 viewport_top: 0,
+                scrolling_padding: _size.1 / 2,
 
                 cursor_x: 0,
                 cursor_y: 0,
@@ -137,13 +141,29 @@ impl Editor {
                     },
 
                     Action::MoveUp => {
-                        self.cursor_y = self.cursor_y.saturating_sub(1);
+                        if self.viewport_top == 0 {
+                            self.cursor_y = self.cursor_y.saturating_sub(1);
+                        }
+                        if self.cursor_y < self.scrolling_padding {
+                            self.viewport_top = self.viewport_top.saturating_sub(1);
+                        }
                     },
                     Action::MoveDown => {
-                        self.cursor_y = self.cursor_y.saturating_add(1);
-                        if self.cursor_y > self.viewport_height() as u16 {
-                            self.cursor_y = self.viewport_height() as u16;
+                        let cannot_move_down = 
+                            self.viewport_height() >= (self.buffer.get_file_lenght() - self.viewport_top as usize);
+                            
+                        if self.cursor_y + self.viewport_top < self.buffer.get_file_lenght() as u16 {
+                            if self.cursor_y < self.viewport_height() as u16 - self.scrolling_padding 
+                                        || cannot_move_down {
+                                self.cursor_y = self.cursor_y.saturating_add(1);
+                            }
+                            if self.cursor_y == self.viewport_height() as u16 - self.scrolling_padding {
+                                if !cannot_move_down {
+                                    self.viewport_top = self.viewport_top.saturating_add(1);
+                                }
+                            }
                         }
+                        
                     },
                     Action::MoveRight => {
                         self.cursor_x = self.cursor_x.saturating_add(1);
@@ -175,39 +195,45 @@ impl Editor {
     }
 
     fn handle_changing(&mut self, v: char) -> anyhow::Result<()> {
-        let mut new_line = String::new();
-        let old_line = self.buffer.lines[self.cursor_y as usize].clone();
+        match self.mode {
+            Mode::Insert => {
+                let mut new_line = String::new();
+                let editable_line_index = (self.cursor_y + self.viewport_top) as usize;
+                let old_line = self.buffer.lines[editable_line_index].clone();
 
-        if self.cursor_x > old_line.len() as u16 {
-            self.stdout.queue(MoveTo(0, self.cursor_y))?;
-            self.cursor_x = old_line.len() as u16;
+                if self.cursor_x > old_line.len() as u16 {
+                    self.stdout.queue(MoveTo(0, self.cursor_y))?;
+                    self.cursor_x = old_line.len() as u16;
+                }
+
+                if self.cursor_x > 0 {
+                    let unchanged_left_part = &old_line[0..self.cursor_x as usize];
+                    let unchanged_right_part = &old_line[self.cursor_x as usize..old_line.len()];
+                    new_line.push_str(unchanged_left_part);
+                    new_line.push(v);
+                    new_line.push_str(unchanged_right_part);
+
+                }
+                else if self.cursor_x as usize == old_line.len() + 1 {
+                    new_line.push_str(&old_line);
+                    new_line.push(v);
+                }
+                else {
+                    new_line.push(v);
+                    new_line.push_str(&old_line);
+                }
+
+                //self.stdout.queue(Print(v))?;
+                self.buffer.lines[editable_line_index] = new_line;
+                self.cursor_x = self.cursor_x.saturating_add(1);
+            },
+            Mode::Command => {
+                // add char to command in command mode
+                self.command_bar.command.push(v);
+            },
+            _ => {}
         }
 
-        if self.cursor_x > 0 {
-            let unchanged_left_part = &old_line[0..self.cursor_x as usize];
-            let unchanged_right_part = &old_line[self.cursor_x as usize..old_line.len()];
-            new_line.push_str(unchanged_left_part);
-            new_line.push(v);
-            new_line.push_str(unchanged_right_part);
-
-        }
-        else if self.cursor_x as usize == old_line.len() + 1 {
-            new_line.push_str(&old_line);
-            new_line.push(v);
-        }
-        else {
-            new_line.push(v);
-            new_line.push_str(&old_line);
-        }
-
-        //self.stdout.queue(Print(v))?;
-        self.buffer.lines[self.cursor_y as usize] = new_line;
-        self.cursor_x = self.cursor_x.saturating_add(1);
-        
-        // add char to command in command mode
-        if self.mode == Mode::Command {
-            self.command_bar.command.push(v);
-        }
 
         Ok(())
     }
@@ -215,7 +241,7 @@ impl Editor {
     fn backspace_limiter(&mut self) -> anyhow::Result<()> {
         match self.mode {
             Mode::Command => {
-                if self.cursor_x > 1 {
+                if self.command_bar.command.len() > 1 {
                     self.stdout.queue(MoveTo(self.cursor_x.saturating_sub(1), self.cursor_y))?;
                     self.stdout.queue(PrintStyledContent(
                         " ".on(Color::Rgb {
@@ -227,14 +253,14 @@ impl Editor {
                     )?;
                     self.cursor_x = self.cursor_x.saturating_sub(1);
                     self.stdout.flush()?;
-                    if self.mode == Mode::Command {
-                        self.command_bar.command.pop();
-                    }
+
+                    self.command_bar.command.pop();
                 }
             },
             Mode::Insert => {
                 let mut new_line = String::new();
-                let old_line = self.buffer.lines[self.cursor_y as usize].clone();
+                let editable_line_index = (self.cursor_y + self.viewport_top) as usize;
+                let old_line = self.buffer.lines[editable_line_index].clone();
 
                 if self.cursor_x > 0 {
                     let unchanged_left_part = &old_line[0..self.cursor_x as usize - 1];
@@ -251,7 +277,7 @@ impl Editor {
                 }
 
                 //self.stdout.queue(Print(v))?;
-                self.buffer.lines[self.cursor_y as usize] = new_line;
+                self.buffer.lines[editable_line_index] = new_line;
                 self.cursor_x = self.cursor_x.saturating_sub(1);
             },
             _ => {}
@@ -304,12 +330,16 @@ impl Editor {
     }
 
     pub fn draw_viewport(&mut self) -> anyhow::Result<()> {
+        let file_len = self.buffer.get_file_lenght();
         for i in 0..self.viewport_height() {
-            let line = match self.viewport_line(i as u16){
-                Some(s) => s,
-                None => String::new()
-            };
-
+            let mut line = String::new();
+            if i < file_len {
+                    line = match self.viewport_line(i as u16) {
+                    Some(s) => s,
+                    None => String::new()
+                };
+            }
+            
             let w = self.viewport_width();
             self.stdout
                 .queue(MoveTo(0, i as u16))?

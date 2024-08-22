@@ -8,7 +8,7 @@ use super::{modules::{get_modules, BarModule}, Editor, Mode};
 
 pub struct CommandBar {
     background_color: (u8, u8, u8),
-    pub command: String
+    pub command: String,
 }
 
 impl CommandBar {
