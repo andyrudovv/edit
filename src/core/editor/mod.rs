@@ -153,9 +153,7 @@ impl Editor {
                         if self.cursor_x < self.viewport_left {
                             self.cursor_x = self.viewport_left;
                         }
-
                     },
-
 
                     Action::Typing(v) => {
                         self.handle_changing(v)?;
