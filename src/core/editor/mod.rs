@@ -77,14 +77,14 @@ impl Editor {
             .execute(cursor::SetCursorStyle::BlinkingBar)?
             .execute(cursor::DisableBlinking)?;
 
-        let _size = terminal::size().unwrap();
+        let _size = terminal::size().expect("Could not get size of terminal");
         
 
         Ok(Editor {
                 buffer: buf,
                 viewport_left: 0,
                 viewport_top: 0,
-                scrolling_padding: _size.1 / 2,
+                scrolling_padding: 4,
 
                 cursor_x: 0,
                 cursor_y: 0,
@@ -141,18 +141,22 @@ impl Editor {
                     },
 
                     Action::MoveUp => {
-                        if self.viewport_top == 0 {
-                            self.cursor_y = self.cursor_y.saturating_sub(1);
-                        }
                         if self.cursor_y < self.scrolling_padding {
                             self.viewport_top = self.viewport_top.saturating_sub(1);
+                        }
+                        else {
+                            self.cursor_y = self.cursor_y.saturating_sub(1);
+                        }
+
+                        if self.cursor_y < self.scrolling_padding && self.viewport_top == 0 {
+                            self.cursor_y = self.cursor_y.saturating_sub(1);
                         }
                     },
                     Action::MoveDown => {
                         let cannot_move_down = 
                             self.viewport_height() >= (self.buffer.get_file_lenght() - self.viewport_top as usize);
                             
-                        if self.cursor_y + self.viewport_top < self.buffer.get_file_lenght() as u16 {
+                        if self.cursor_y + self.viewport_top < self.buffer.get_file_lenght() as u16 - 1 {
                             if self.cursor_y < self.viewport_height() as u16 - self.scrolling_padding 
                                         || cannot_move_down {
                                 self.cursor_y = self.cursor_y.saturating_add(1);
@@ -433,8 +437,8 @@ impl Editor {
 
 impl Drop for Editor {
     fn drop(&mut self) {
-        self.stdout.execute(terminal::LeaveAlternateScreen); // Leave upper terminal layer
-        terminal::disable_raw_mode();
+        let _ = self.stdout.execute(terminal::LeaveAlternateScreen); // Leave upper terminal layer
+        let _ = terminal::disable_raw_mode();
 
         self.timer.end();
 
