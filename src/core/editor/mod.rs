@@ -192,12 +192,54 @@ impl Editor {
                         self.handle_enter();
                     }
                     Action::TabKey => {
-                        self.cursor_x = self.cursor_x.saturating_add(4);
+                        self.handle_tab();
                     }
                     Action::Backspace => {
                         self.handle_backspace()?;
                     }
                 }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn handle_tab(&mut self) -> anyhow::Result<()> {
+        match self.mode {
+            Mode::Insert => {
+                let mut new_line = String::new();
+                let editable_line_index = (self.cursor_y + self.viewport_top) as usize;
+                let old_line = self.buffer.lines[editable_line_index].clone();
+
+                if self.cursor_x > old_line.len() as u16 {
+                    self.stdout.queue(MoveTo(0, self.cursor_y))?;
+                    self.cursor_x = old_line.len() as u16;
+                }
+
+                if self.cursor_x > 0 {
+                    let unchanged_left_part = &old_line[0..self.cursor_x as usize];
+                    let unchanged_right_part = &old_line[self.cursor_x as usize..old_line.len()];
+
+                    new_line.push_str(unchanged_left_part);
+                    new_line.push_str("    ");
+                    new_line.push_str(unchanged_right_part);
+                } else if self.cursor_x as usize == old_line.len() + 1 {
+                    new_line.push_str(&old_line);
+                    new_line.push_str("    ");
+                } else {
+                    new_line.push_str("    ");
+                    new_line.push_str(&old_line);
+                }
+
+                //self.stdout.queue(Print(v))?;
+                self.buffer.lines[editable_line_index] = new_line;
+                self.cursor_x = self.cursor_x.saturating_add(4);
+            },
+            Mode::Normal => {
+
+            },
+            Mode::Command => {
+
             }
         }
 
@@ -267,6 +309,11 @@ impl Editor {
                 let editable_line_index = (self.cursor_y + self.viewport_top) as usize;
                 let old_line = self.buffer.lines[editable_line_index].clone();
 
+                if self.cursor_x > old_line.len() as u16 {
+                    self.stdout.queue(MoveTo(0, self.cursor_y))?;
+                    self.cursor_x = old_line.len() as u16;
+                }
+
                 if self.cursor_x > 0 {
                     let unchanged_left_part = &old_line[0..self.cursor_x as usize - 1];
                     let unchanged_right_part = &old_line[self.cursor_x as usize..old_line.len()];
@@ -280,6 +327,7 @@ impl Editor {
 
                     self.buffer.lines[editable_line_index] = new_line;
                     self.cursor_x = self.cursor_x.saturating_sub(1);
+                
                 } else {
                     if self.cursor_y > 0 {
                         let previous_line = self.buffer.lines[editable_line_index-1].clone();
@@ -305,10 +353,10 @@ impl Editor {
         Ok(())
     }
 
-    fn handle_enter(&mut self) {
+    fn handle_enter(&mut self) -> anyhow::Result<()>{
         match self.mode {
             Mode::Command => {
-                self.execute_command(self.command_bar.command.clone());
+                self.execute_command(self.command_bar.command.clone())?;
                 self.command_bar.command = String::new();
                 self.command_bar.command.push(':');
             }
@@ -318,18 +366,26 @@ impl Editor {
                     self.cursor_y = self.cursor_y.saturating_add(1);
                     self.cursor_x = 0;
                 }
+                // TODO: handle enter key in the not only at the end of file
+                // in the middle of line and in the beginning
                 
             }
             Mode::Normal => {
                 self.cursor_y = self.cursor_y.saturating_add(1);
             }
         }
+        Ok(())
     }
 
-    fn execute_command(&mut self, command: String) {
+    fn execute_command(&mut self, command: String) -> anyhow::Result<()> {
         if command.trim().to_string() == ":q".to_string() {
             self.running = false;
         }
+        else if command.trim().to_string() == ":w".to_string() {
+            self.buffer.save()?;
+        }
+
+        Ok(())
     }
 
     fn draw(&mut self, size: (u16, u16)) -> anyhow::Result<()> {
@@ -375,7 +431,9 @@ impl Editor {
     }
 
     pub fn draw_status_bar(&mut self) -> anyhow::Result<()> {
-        self.status_bar.draw(&mut self.stdout, self.size)?;
+        if self.enable_status_bar {
+            self.status_bar.draw(&mut self.stdout, self.size)?;
+        }
 
         Ok(())
     }
