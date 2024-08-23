@@ -1,21 +1,30 @@
-use std::{any, borrow::Borrow, io::{stdout, Stdout}};
+use std::{
+    any,
+    borrow::Borrow,
+    io::{stdout, Stdout},
+};
 
 use anyhow::Ok;
-use crossterm::{cursor::{self, MoveTo}, event::{self, read}, style::{Color, Print, PrintStyledContent, Stylize}, terminal, ExecutableCommand, QueueableCommand};
+use crossterm::{
+    cursor::{self, MoveTo},
+    event::{self, read},
+    style::{Color, Print, PrintStyledContent, Stylize},
+    terminal, ExecutableCommand, QueueableCommand,
+};
 use std::io::Write;
 
-use status_bar::StatusBar;
 use command_bar::CommandBar;
+use status_bar::StatusBar;
 
 use super::{buffer::Buffer, time::Timer};
 
 // mods
-mod modules; 
-mod status_bar;
 mod command_bar;
+mod modules;
+mod status_bar;
 
-enum Action{ // Possible movement actions
-
+enum Action {
+    // Possible movement actions
     MoveUp,
     MoveDown,
     MoveLeft,
@@ -27,11 +36,12 @@ enum Action{ // Possible movement actions
     TabKey,
     Backspace,
 
-    SetMode(Mode)
+    SetMode(Mode),
 }
 
 #[derive(Clone, Copy, PartialEq)]
-enum Mode{ // interactions modes
+enum Mode {
+    // interactions modes
     Normal,
     Insert,
     Command,
@@ -57,14 +67,11 @@ pub struct Editor {
     status_bar: StatusBar,
 
     command_bar: CommandBar,
-    scrolling_padding: u16
-
+    scrolling_padding: u16,
 }
-
 
 impl Editor {
     pub fn new(buf: Buffer) -> anyhow::Result<Self> {
-
         let mut _stdout = stdout();
 
         let mut timer = Timer::new();
@@ -72,41 +79,39 @@ impl Editor {
 
         terminal::enable_raw_mode()?;
         _stdout
-            .execute(terminal::EnterAlternateScreen)? // Enter to the upper terminal layer 
-            .execute(terminal::Clear(terminal::ClearType::All))?// Clear new terminal layer
+            .execute(terminal::EnterAlternateScreen)? // Enter to the upper terminal layer
+            .execute(terminal::Clear(terminal::ClearType::All))? // Clear new terminal layer
             .execute(cursor::SetCursorStyle::BlinkingBar)?
             .execute(cursor::DisableBlinking)?;
 
         let _size = terminal::size().expect("Could not get size of terminal");
-        
 
         Ok(Editor {
-                buffer: buf,
-                viewport_left: 0,
-                viewport_top: 0,
-                scrolling_padding: 4,
+            buffer: buf,
+            viewport_left: 0,
+            viewport_top: 0,
+            scrolling_padding: 4,
 
-                cursor_x: 0,
-                cursor_y: 0,
+            cursor_x: 0,
+            cursor_y: 0,
 
-                running: true,
+            running: true,
 
-                size: _size,
+            size: _size,
 
-                mode: Mode::Normal,
+            mode: Mode::Normal,
 
-                enable_status_bar: true,
-                status_bar: StatusBar::new(),
-                command_bar: CommandBar::new(),
+            enable_status_bar: true,
+            status_bar: StatusBar::new(),
+            command_bar: CommandBar::new(),
 
-                timer,
+            timer,
 
-                stdout: _stdout,
-            })
+            stdout: _stdout,
+        })
     }
 
     pub fn start(&mut self) -> anyhow::Result<()> {
-
         self.mainloop()?;
 
         Ok(())
@@ -116,85 +121,86 @@ impl Editor {
     fn mainloop(&mut self) -> anyhow::Result<()> {
         while self.running {
             self.status_bar.get_editor_info((
-                self.mode.clone(), 
-                Box::new(
-                    self.buffer.file
-                    .clone()
-                    .unwrap_or("[No Name]".to_string()
-                ))
+                self.mode.clone(),
+                Box::new(self.buffer.file.clone().unwrap_or("[No Name]".to_string())),
             ));
             // drawings
             self.draw(self.size)?;
             self.stdout.flush()?;
 
-            self.stdout.queue(MoveTo(self.cursor_x.into(), self.cursor_y.into()))?; // start cursor
+            self.stdout
+                .queue(MoveTo(self.cursor_x.into(), self.cursor_y.into()))?; // start cursor
             self.stdout.flush()?; // output sync with Stdout
 
             if let Some(action) = self.handel_event(read()?)? {
                 match action {
                     Action::SetMode(new_mode) => {
-                        if new_mode == Mode::Command{
-                            self.cursor_x = 1; 
+                        if new_mode == Mode::Command {
+                            self.cursor_x = 1;
                             self.cursor_y = self.size.1;
                         }
                         self.mode = new_mode;
-                    },
+                    }
 
                     Action::MoveUp => {
                         if self.cursor_y < self.scrolling_padding {
                             self.viewport_top = self.viewport_top.saturating_sub(1);
-                        }
-                        else {
+                        } else {
                             self.cursor_y = self.cursor_y.saturating_sub(1);
                         }
 
                         if self.cursor_y < self.scrolling_padding && self.viewport_top == 0 {
                             self.cursor_y = self.cursor_y.saturating_sub(1);
                         }
-                    },
+                    }
                     Action::MoveDown => {
-                        let cannot_move_down = 
-                            self.viewport_height() >= (self.buffer.get_file_lenght() - self.viewport_top as usize);
-                            
-                        if self.cursor_y + self.viewport_top < self.buffer.get_file_lenght() as u16 - 1 {
-                            if self.cursor_y < self.viewport_height() as u16 - self.scrolling_padding 
-                                        || cannot_move_down {
+                        let cannot_move_down = self.viewport_height()
+                            >= (self.buffer.get_file_lenght() - self.viewport_top as usize);
+
+                        if self.cursor_y + self.viewport_top
+                            < self.buffer.get_file_lenght() as u16 - 1
+                        {
+                            if self.cursor_y
+                                < self.viewport_height() as u16 - self.scrolling_padding
+                                || cannot_move_down
+                            {
                                 self.cursor_y = self.cursor_y.saturating_add(1);
                             }
-                            if self.cursor_y == self.viewport_height() as u16 - self.scrolling_padding {
+                            if self.cursor_y
+                                == self.viewport_height() as u16 - self.scrolling_padding
+                            {
                                 if !cannot_move_down {
                                     self.viewport_top = self.viewport_top.saturating_add(1);
                                 }
                             }
                         }
-                        
-                    },
+                    }
                     Action::MoveRight => {
                         self.cursor_x = self.cursor_x.saturating_add(1);
-                    },
+                    }
                     Action::MoveLeft => {
                         self.cursor_x = self.cursor_x.saturating_sub(1);
                         if self.cursor_x < self.viewport_left {
                             self.cursor_x = self.viewport_left;
                         }
-                    },
+                    }
 
                     Action::Typing(v) => {
                         self.handle_changing(v)?;
-                    },
+                    }
                     Action::EnterKey => {
                         self.handle_enter();
-                    },
+                    }
                     Action::TabKey => {
                         self.cursor_x = self.cursor_x.saturating_add(4);
-                    },
+                    }
                     Action::Backspace => {
-                        self.backspace_limiter()?; // bounding 
-                    },
+                        self.backspace_limiter()?; // bounding
+                    }
                 }
             }
         }
-        
+
         Ok(())
     }
 
@@ -213,16 +219,14 @@ impl Editor {
                 if self.cursor_x > 0 {
                     let unchanged_left_part = &old_line[0..self.cursor_x as usize];
                     let unchanged_right_part = &old_line[self.cursor_x as usize..old_line.len()];
+
                     new_line.push_str(unchanged_left_part);
                     new_line.push(v);
                     new_line.push_str(unchanged_right_part);
-
-                }
-                else if self.cursor_x as usize == old_line.len() + 1 {
+                } else if self.cursor_x as usize == old_line.len() + 1 {
                     new_line.push_str(&old_line);
                     new_line.push(v);
-                }
-                else {
+                } else {
                     new_line.push(v);
                     new_line.push_str(&old_line);
                 }
@@ -230,14 +234,13 @@ impl Editor {
                 //self.stdout.queue(Print(v))?;
                 self.buffer.lines[editable_line_index] = new_line;
                 self.cursor_x = self.cursor_x.saturating_add(1);
-            },
+            }
             Mode::Command => {
                 // add char to command in command mode
                 self.command_bar.command.push(v);
-            },
+            }
             _ => {}
         }
-
 
         Ok(())
     }
@@ -246,21 +249,19 @@ impl Editor {
         match self.mode {
             Mode::Command => {
                 if self.command_bar.command.len() > 1 {
-                    self.stdout.queue(MoveTo(self.cursor_x.saturating_sub(1), self.cursor_y))?;
-                    self.stdout.queue(PrintStyledContent(
-                        " ".on(Color::Rgb {
-                                r: 255,
-                                g: 255,
-                                b: 255
-                            })
-                        )
-                    )?;
+                    self.stdout
+                        .queue(MoveTo(self.cursor_x.saturating_sub(1), self.cursor_y))?;
+                    self.stdout.queue(PrintStyledContent(" ".on(Color::Rgb {
+                        r: 255,
+                        g: 255,
+                        b: 255,
+                    })))?;
                     self.cursor_x = self.cursor_x.saturating_sub(1);
                     self.stdout.flush()?;
 
                     self.command_bar.command.pop();
                 }
-            },
+            }
             Mode::Insert => {
                 let mut new_line = String::new();
                 let editable_line_index = (self.cursor_y + self.viewport_top) as usize;
@@ -271,19 +272,16 @@ impl Editor {
                     let unchanged_right_part = &old_line[self.cursor_x as usize..old_line.len()];
                     new_line.push_str(unchanged_left_part);
                     new_line.push_str(unchanged_right_part);
-
-                }
-                else if self.cursor_x as usize == old_line.len() + 1 {
+                } else if self.cursor_x as usize == old_line.len() + 1 {
                     new_line.push_str(&old_line[0..self.cursor_x as usize]);
-                }
-                else {
+                } else {
                     new_line.push_str(&old_line);
                 }
 
                 //self.stdout.queue(Print(v))?;
                 self.buffer.lines[editable_line_index] = new_line;
                 self.cursor_x = self.cursor_x.saturating_sub(1);
-            },
+            }
             _ => {}
         }
 
@@ -296,11 +294,11 @@ impl Editor {
                 self.execute_command(self.command_bar.command.clone());
                 self.command_bar.command = String::new();
                 self.command_bar.command.push(':');
-            },
+            }
             Mode::Insert => {
                 self.cursor_y = self.cursor_y.saturating_add(1);
                 self.cursor_x = 0;
-            },
+            }
             Mode::Normal => {
                 self.cursor_y = self.cursor_y.saturating_add(1);
             }
@@ -314,22 +312,24 @@ impl Editor {
     }
 
     fn draw(&mut self, size: (u16, u16)) -> anyhow::Result<()> {
-        
         self.draw_status_bar()?;
         self.draw_viewport()?;
 
         match self.mode {
             Mode::Command => {
-                self.draw_command_bar()?; 
-                return Ok(())
-            },
-            _ => {self.command_bar.clean(&mut self.stdout, size)?; return Ok(())},
+                self.draw_command_bar()?;
+                return Ok(());
+            }
+            _ => {
+                self.command_bar.clean(&mut self.stdout, size)?;
+                return Ok(());
+            }
         }
     }
 
     pub fn viewport_line(&self, n: u16) -> Option<String> {
         let buffer_line = self.viewport_top + n;
-        
+
         self.buffer.get(buffer_line as usize)
     }
 
@@ -338,31 +338,27 @@ impl Editor {
         for i in 0..self.viewport_height() {
             let mut line = String::new();
             if i < file_len {
-                    line = match self.viewport_line(i as u16) {
+                line = match self.viewport_line(i as u16) {
                     Some(s) => s,
-                    None => String::new()
+                    None => String::new(),
                 };
             }
-            
+
             let w = self.viewport_width();
             self.stdout
                 .queue(MoveTo(0, i as u16))?
-                .queue(Print(format!(
-                        "{line:<width$}",
-                        width = w as usize
-                    ))
-                )?;
+                .queue(Print(format!("{line:<width$}", width = w as usize)))?;
         }
 
         Ok(())
     }
-    
+
     pub fn draw_status_bar(&mut self) -> anyhow::Result<()> {
         self.status_bar.draw(&mut self.stdout, self.size)?;
 
         Ok(())
     }
-    
+
     pub fn draw_command_bar(&mut self) -> anyhow::Result<()> {
         self.command_bar.draw(&mut self.stdout, self.size)?;
 
@@ -377,8 +373,7 @@ impl Editor {
         self.size.0
     }
 
-    
-    fn handel_event(&self, ev: event::Event) -> anyhow::Result<Option<Action>>{
+    fn handel_event(&self, ev: event::Event) -> anyhow::Result<Option<Action>> {
         match self.mode {
             Mode::Normal => self.handle_normal_event(ev),
             Mode::Insert => self.handle_insert_event(ev),
@@ -386,7 +381,7 @@ impl Editor {
         }
     }
 
-    fn handle_normal_event(&self, ev: event::Event) -> anyhow::Result<Option<Action>>{
+    fn handle_normal_event(&self, ev: event::Event) -> anyhow::Result<Option<Action>> {
         match ev {
             event::Event::Key(event) => match event.code {
                 event::KeyCode::Char(':') => Ok(Some(Action::SetMode(Mode::Command))),
@@ -434,7 +429,6 @@ impl Editor {
     }
 }
 
-
 impl Drop for Editor {
     fn drop(&mut self) {
         let _ = self.stdout.execute(terminal::LeaveAlternateScreen); // Leave upper terminal layer
@@ -444,6 +438,5 @@ impl Drop for Editor {
 
         let duration_sec = self.timer.get_duration_sec();
         println!("~{} took", duration_sec);
-
     }
 }

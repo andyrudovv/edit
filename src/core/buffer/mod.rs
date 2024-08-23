@@ -6,17 +6,26 @@ pub struct Buffer {
 
 impl Buffer {
     pub fn from_file(file: Option<String>) -> Self {
-        let lines = match &file {
+        let mut file_name = file;
+        let lines = match &file_name {
             Some(file) => 
-                std::fs::read_to_string(file)
-                .unwrap()
-                .lines()
-                .map(|s| s.to_string())
-                .collect(),
+                {
+                    let strings = std::fs::read_to_string(file);
+
+                    match strings {
+                        Ok(str) => str.lines().map(|s| s.to_string()).collect(),
+                        Err(_) => {
+                            file_name = Some("[New File]".to_string());
+                            vec![String::new()]}
+                    }
+                },
             None => vec![]
         };
 
-        Self {file, lines}
+        Self {
+            file:file_name, 
+            lines
+        }
     }
 
     pub fn get(&self, line: usize) -> Option<String> {
