@@ -195,7 +195,7 @@ impl Editor {
                         self.cursor_x = self.cursor_x.saturating_add(4);
                     }
                     Action::Backspace => {
-                        self.backspace_limiter()?; // bounding
+                        self.handle_backspace()?;
                     }
                 }
             }
@@ -245,7 +245,7 @@ impl Editor {
         Ok(())
     }
 
-    fn backspace_limiter(&mut self) -> anyhow::Result<()> {
+    fn handle_backspace(&mut self) -> anyhow::Result<()> {
         match self.mode {
             Mode::Command => {
                 if self.command_bar.command.len() > 1 {
@@ -272,15 +272,32 @@ impl Editor {
                     let unchanged_right_part = &old_line[self.cursor_x as usize..old_line.len()];
                     new_line.push_str(unchanged_left_part);
                     new_line.push_str(unchanged_right_part);
+
+                    self.buffer.lines[editable_line_index] = new_line;
+                    self.cursor_x = self.cursor_x.saturating_sub(1);
                 } else if self.cursor_x as usize == old_line.len() + 1 {
                     new_line.push_str(&old_line[0..self.cursor_x as usize]);
+
+                    self.buffer.lines[editable_line_index] = new_line;
+                    self.cursor_x = self.cursor_x.saturating_sub(1);
                 } else {
-                    new_line.push_str(&old_line);
+                    if self.cursor_y > 0 {
+                        let previous_line = self.buffer.lines[editable_line_index-1].clone();
+                        new_line.push_str(&previous_line);
+                        new_line.push_str(&old_line);
+
+                        let l = (&previous_line).len();
+
+                        self.buffer.lines[editable_line_index-1] = new_line;
+                        self.cursor_y = self.cursor_y.saturating_sub(1);
+                        self.cursor_x = l as u16;
+                        self.buffer.lines.remove(editable_line_index);
+                    }
+                    
                 }
 
                 //self.stdout.queue(Print(v))?;
-                self.buffer.lines[editable_line_index] = new_line;
-                self.cursor_x = self.cursor_x.saturating_sub(1);
+                
             }
             _ => {}
         }
@@ -296,8 +313,12 @@ impl Editor {
                 self.command_bar.command.push(':');
             }
             Mode::Insert => {
-                self.cursor_y = self.cursor_y.saturating_add(1);
-                self.cursor_x = 0;
+                if self.cursor_y + self.viewport_top + 1 == self.buffer.get_file_lenght() as u16 {
+                    self.buffer.lines.push(String::new());
+                    self.cursor_y = self.cursor_y.saturating_add(1);
+                    self.cursor_x = 0;
+                }
+                
             }
             Mode::Normal => {
                 self.cursor_y = self.cursor_y.saturating_add(1);
