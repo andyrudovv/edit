@@ -19,7 +19,7 @@ impl Buffer {
                         }
                     }
                 },
-            None => vec![]
+            None => vec![String::new()]
         };
 
         Self {
