@@ -129,7 +129,7 @@ impl Editor {
             self.stdout.flush()?;
 
             self.stdout
-                .queue(MoveTo(self.cursor_x.into(), self.cursor_y.into()))?; // start cursor
+                .queue(MoveTo(self.cursor_x as u16 + self.buffer.get_file_lenght().to_string().len() as u16+1, self.cursor_y.into()))?; // start cursor
             self.stdout.flush()?; // output sync with Stdout
 
             if let Some(action) = self.handel_event(read()?)? {
@@ -189,10 +189,10 @@ impl Editor {
                         self.handle_changing(v)?;
                     }
                     Action::EnterKey => {
-                        self.handle_enter();
+                        self.handle_enter()?;
                     }
                     Action::TabKey => {
-                        self.handle_tab();
+                        self.handle_tab()?;
                     }
                     Action::Backspace => {
                         self.handle_backspace()?;
@@ -212,7 +212,7 @@ impl Editor {
                 let old_line = self.buffer.lines[editable_line_index].clone();
 
                 if self.cursor_x > old_line.len() as u16 {
-                    self.stdout.queue(MoveTo(0, self.cursor_y))?;
+                    self.stdout.queue(MoveTo(self.cursor_x as u16 + self.buffer.get_file_lenght().to_string().len() as u16+1, self.cursor_y))?;
                     self.cursor_x = old_line.len() as u16;
                 }
 
@@ -223,10 +223,10 @@ impl Editor {
                     new_line.push_str(unchanged_left_part);
                     new_line.push_str("    ");
                     new_line.push_str(unchanged_right_part);
-                } else if self.cursor_x as usize == old_line.len() + 1 {
+                } /*else if self.cursor_x as usize == old_line.len() + 1 {
                     new_line.push_str(&old_line);
                     new_line.push_str("    ");
-                } else {
+                } */else {
                     new_line.push_str("    ");
                     new_line.push_str(&old_line);
                 }
@@ -254,7 +254,7 @@ impl Editor {
                 let old_line = self.buffer.lines[editable_line_index].clone();
 
                 if self.cursor_x > old_line.len() as u16 {
-                    self.stdout.queue(MoveTo(0, self.cursor_y))?;
+                    self.stdout.queue(MoveTo(self.cursor_x as u16 + self.buffer.get_file_lenght().to_string().len() as u16+1, self.cursor_y))?;
                     self.cursor_x = old_line.len() as u16;
                 }
 
@@ -265,10 +265,11 @@ impl Editor {
                     new_line.push_str(unchanged_left_part);
                     new_line.push(v);
                     new_line.push_str(unchanged_right_part);
-                } else if self.cursor_x as usize == old_line.len() + 1 {
+                } /*else if self.cursor_x as usize == old_line.len() + 1 {
                     new_line.push_str(&old_line);
                     new_line.push(v);
-                } else {
+                    new_line.push('2');
+                } */else {
                     new_line.push(v);
                     new_line.push_str(&old_line);
                 }
@@ -280,6 +281,7 @@ impl Editor {
             Mode::Command => {
                 // add char to command in command mode
                 self.command_bar.command.push(v);
+                self.cursor_x = self.cursor_x.saturating_add(1);
             }
             _ => {}
         }
@@ -310,7 +312,7 @@ impl Editor {
                 let old_line = self.buffer.lines[editable_line_index].clone();
 
                 if self.cursor_x > old_line.len() as u16 {
-                    self.stdout.queue(MoveTo(0, self.cursor_y))?;
+                    self.stdout.queue(MoveTo(self.cursor_x as u16 + self.buffer.get_file_lenght().to_string().len() as u16+1, self.cursor_y))?;
                     self.cursor_x = old_line.len() as u16;
                 }
 
@@ -322,13 +324,13 @@ impl Editor {
 
                     self.buffer.lines[editable_line_index] = new_line;
                     self.cursor_x = self.cursor_x.saturating_sub(1);
-                } else if self.cursor_x as usize == old_line.len() + 1 {
+                } /*else if self.cursor_x as usize == old_line.len() + 1 {
                     new_line.push_str(&old_line[0..self.cursor_x as usize]);
 
                     self.buffer.lines[editable_line_index] = new_line;
                     self.cursor_x = self.cursor_x.saturating_sub(1);
                 
-                } else {
+                } */else {
                     if self.cursor_y > 0 {
                         let previous_line = self.buffer.lines[editable_line_index-1].clone();
                         new_line.push_str(&previous_line);
@@ -343,9 +345,6 @@ impl Editor {
                     }
                     
                 }
-
-                //self.stdout.queue(Print(v))?;
-                
             }
             _ => {}
         }
@@ -361,13 +360,28 @@ impl Editor {
                 self.command_bar.command.push(':');
             }
             Mode::Insert => {
-                if self.cursor_y + self.viewport_top + 1 == self.buffer.get_file_lenght() as u16 {
-                    self.buffer.lines.push(String::new());
+                let editable_line_index = (self.cursor_y + self.viewport_top) as usize;//индекс
+                let old_line = self.buffer.lines[editable_line_index].clone(); //старая строка
+                if self.cursor_x+1 > old_line.len() as u16{
+                    self.buffer.lines.
+                    splice(editable_line_index+1..editable_line_index+1, (&["".to_string()])
+                    .iter()
+                    .cloned());
                     self.cursor_y = self.cursor_y.saturating_add(1);
                     self.cursor_x = 0;
                 }
-                // TODO: handle enter key in the not only at the end of file
-                // in the middle of line and in the beginning
+            
+                else {// если не за перделами       
+                    let unchanged_left_part = &old_line[0..self.cursor_x as usize];//запоминаем левую часть
+                    let unchanged_right_part = &old_line[self.cursor_x as usize..old_line.len()]; //запоминаем правую часть
+                    let y = &[unchanged_left_part.to_string(), unchanged_right_part.to_string()];//записываем их в список
+                    self.buffer.lines.remove(editable_line_index);//удаляем текущую строку
+                    self.buffer.lines.splice(editable_line_index..editable_line_index, y
+                        .iter()
+                        .cloned());//вставляем те части в середину
+                    self.cursor_y = self.cursor_y.saturating_add(1);
+                    self.cursor_x = 0;
+                }
                 
             }
             Mode::Normal => {
@@ -384,14 +398,14 @@ impl Editor {
         else if command.trim().to_string() == ":w".to_string() {
             self.buffer.save()?;
         }
-
+        
         Ok(())
     }
 
     fn draw(&mut self, size: (u16, u16)) -> anyhow::Result<()> {
-        self.draw_status_bar()?;
+        
         self.draw_viewport()?;
-
+        self.draw_status_bar()?;
         match self.mode {
             Mode::Command => {
                 self.draw_command_bar()?;
@@ -410,10 +424,22 @@ impl Editor {
         self.buffer.get(buffer_line as usize)
     }
 
+    pub fn number_line(&self, number: u16) -> Option<String>{
+        Some((self.viewport_top + number+1).to_string())
+    }
+
     pub fn draw_viewport(&mut self) -> anyhow::Result<()> {
         let file_len = self.buffer.get_file_lenght();
         for i in 0..self.viewport_height() {
-            let mut line = String::new();
+            let number_line = self.number_line(i as u16);
+            let mut line = String::from(" ".repeat(file_len.to_string().len()));
+            self.stdout
+                .queue(MoveTo(0, i as u16))?
+                .queue(Print(line.clone()))?;
+            
+            self.stdout
+                .queue(MoveTo(0, i as u16))?
+                .queue(Print(format!("{}",number_line.clone().unwrap())))?;
             if i < file_len {
                 line = match self.viewport_line(i as u16) {
                     Some(s) => s,
@@ -423,10 +449,10 @@ impl Editor {
 
             let w = self.viewport_width();
             self.stdout
-                .queue(MoveTo(0, i as u16))?
+                .queue(MoveTo(file_len.to_string().len() as u16+1, i as u16))?
                 .queue(Print(format!("{line:<width$}", width = w as usize)))?;
         }
-
+        self.stdout.queue(MoveTo(0, self.size.1-2))?;
         Ok(())
     }
 

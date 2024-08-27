@@ -46,7 +46,6 @@ impl CommandBar {
                     b: 51 
                 })
             ))?;
-
         _stdout.flush()?;
         Ok(())
     }
