@@ -11,14 +11,6 @@ fn main() -> anyhow::Result<()> {
     let mut editor = Editor::new(buffer).unwrap();
     editor.start()?;
 
-    hello()?;
     Ok(())
 }
 
-
-fn hello() -> anyhow::Result<()> {
-
-    println!("Hello, andy!");
-    
-    Ok(())
-}
