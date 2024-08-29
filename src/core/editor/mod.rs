@@ -90,7 +90,7 @@ impl Editor {
             buffer: buf,
             viewport_left: 0,
             viewport_top: 0,
-            scrolling_padding: 4,
+            scrolling_padding: 1,
 
             cursor_x: 0,
             cursor_y: 0,
@@ -136,7 +136,7 @@ impl Editor {
                 match action {
                     Action::SetMode(new_mode) => {
                         if new_mode == Mode::Command {
-                            self.cursor_x = 1;
+                            self.cursor_x = 0;
                             self.cursor_y = self.size.1;
                         }
                         self.mode = new_mode;
@@ -385,7 +385,7 @@ impl Editor {
                 
             }
             Mode::Normal => {
-                self.cursor_y = self.cursor_y.saturating_add(1);
+                //self.cursor_y = self.cursor_y.saturating_add(1);
             }
         }
         Ok(())
@@ -432,27 +432,28 @@ impl Editor {
         let file_len = self.buffer.get_file_lenght();
         for i in 0..self.viewport_height() {
             let number_line = self.number_line(i as u16);
-            let mut line = String::from(" ".repeat(file_len.to_string().len()));
+            let mut line = String::from(" ".repeat(file_len.to_string().len()+1));
             self.stdout
                 .queue(MoveTo(0, i as u16))?
                 .queue(Print(line.clone()))?;
-            
-            self.stdout
-                .queue(MoveTo(0, i as u16))?
-                .queue(Print(format!("{}",number_line.clone().unwrap())))?;
+                                //условие, если курсор ниже, чем написанный текст в файле
+            if i < file_len || i as i32 - 1 < self.cursor_y.into() && self.mode != Mode::Command{
+                self.stdout
+                    .queue(MoveTo(0, i as u16))?
+                    .queue(Print(format!("{}",number_line.clone().unwrap())))?;
+            }
             if i < file_len {
                 line = match self.viewport_line(i as u16) {
                     Some(s) => s,
                     None => String::new(),
                 };
             }
-
             let w = self.viewport_width();
             self.stdout
                 .queue(MoveTo(file_len.to_string().len() as u16+1, i as u16))?
                 .queue(Print(format!("{line:<width$}", width = w as usize)))?;
         }
-        self.stdout.queue(MoveTo(0, self.size.1-2))?;
+        //self.stdout.queue(MoveTo(0, self.size.1-2))?;
         Ok(())
     }
 
