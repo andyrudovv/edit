@@ -279,9 +279,9 @@ impl Editor {
                 self.cursor_x = self.cursor_x.saturating_add(1);
             }
             Mode::Command => {
+                self.cursor_x = self.command_bar.command.len() as u16 + 1;
                 // add char to command in command mode
                 self.command_bar.command.push(v);
-                self.cursor_x = self.cursor_x.saturating_add(1);
             }
             _ => {}
         }
@@ -371,7 +371,7 @@ impl Editor {
                     self.cursor_x = 0;
                 }
             
-                else {// если не за перделами       
+                else {// not crossed the boundings
                     let unchanged_left_part = &old_line[0..self.cursor_x as usize];//запоминаем левую часть
                     let unchanged_right_part = &old_line[self.cursor_x as usize..old_line.len()]; //запоминаем правую часть
                     let y = &[unchanged_left_part.to_string(), unchanged_right_part.to_string()];//записываем их в список
@@ -385,7 +385,7 @@ impl Editor {
                 
             }
             Mode::Normal => {
-                //self.cursor_y = self.cursor_y.saturating_add(1);
+                self.cursor_y = self.cursor_y.saturating_add(1);
             }
         }
         Ok(())
