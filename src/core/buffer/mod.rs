@@ -1,3 +1,4 @@
+pub mod rust_parser;
 
 pub struct Buffer {
     pub file: Option<String>,
@@ -28,6 +29,28 @@ impl Buffer {
         }
     }
 
+    pub fn load_file(&mut self, filename: Option<&str>) -> anyhow::Result<()> {
+        let lines = match filename {
+            Some(file) => 
+            {
+                let strings = std::fs::read_to_string(file);
+
+                match strings {
+                    Ok(str) => str.lines().map(|s| s.to_string()).collect(),
+                    Err(_) => {
+                        vec![String::new()]
+                    }
+                }
+            },
+            None => vec![String::new()]
+        };
+
+        self.file = Some(filename.unwrap().trim().to_string());
+        self.lines = lines;
+
+        Ok(())
+    }
+
     pub fn get(&self, line: usize) -> Option<String> {
         if self.lines.len() >= line {
             return Some(self.lines[line].clone());
@@ -51,7 +74,30 @@ impl Buffer {
         Ok(())
     }
 
-    pub fn save_by_name(&self) {
+    pub fn save_by_name(&self, filename: &str) -> anyhow::Result<()>{
+        let mut whole_content = String::new();
+        for line in self.lines.iter() {
+            whole_content.push_str(line);
+            whole_content.push('\n');
+        }
 
+        std::fs::write(filename, whole_content)?;
+
+
+        
+        Ok(())
+    }
+
+    fn get_extension_from_filename(&self) -> &str {
+        let _file = self.file.clone().take().unwrap();
+
+        "rs"
+    }
+
+    fn parse(&self) {
+        let extension = self.get_extension_from_filename();
+        if extension == "rs" {
+            rust_parser::parse(&self.lines);
+        }
     }
 }

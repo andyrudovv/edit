@@ -1,8 +1,4 @@
-use std::{
-    any,
-    borrow::Borrow,
-    io::{stdout, Stdout},
-};
+use std::io::{stdout, Stdout};
 
 use anyhow::Ok;
 use crossterm::{
@@ -392,11 +388,30 @@ impl Editor {
     }
 
     fn execute_command(&mut self, command: String) -> anyhow::Result<()> {
-        if command.trim().to_string() == ":q".to_string() {
+        let _command = command.trim().to_string();
+        if _command == ":q".to_string() {
             self.running = false;
         }
-        else if command.trim().to_string() == ":w".to_string() {
+        else if _command == ":w".to_string() {
             self.buffer.save()?;
+        }
+        else if _command.starts_with(":w") {
+            let c = _command.clone().trim().to_string();
+            let splitted_command = c.split(' ');
+            let splitted_command_vec: Vec<&str> = splitted_command.collect();
+            let new_file_name = splitted_command_vec.last();
+
+            if let Some(nfn) = new_file_name {
+                self.buffer.save_by_name(nfn)?;
+            }
+        }
+        else if _command.starts_with(":e") {
+            let c = _command.clone().trim().to_string();
+            let splitted_command = c.split(' ');
+            let splitted_command_vec: Vec<&str> = splitted_command.collect();
+            let new_file_name = splitted_command_vec.last();
+
+            self.buffer.load_file(new_file_name.copied())?;
         }
         
         Ok(())
