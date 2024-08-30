@@ -1,3 +1,3 @@
 pub mod editor;
-pub mod time;
+pub mod timer;
 pub mod buffer;

@@ -12,7 +12,7 @@ use std::io::Write;
 use command_bar::CommandBar;
 use status_bar::StatusBar;
 
-use super::{buffer::Buffer, time::Timer};
+use super::{buffer::Buffer, timer::Timer};
 
 // mods
 mod command_bar;

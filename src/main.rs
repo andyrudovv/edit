@@ -1,7 +1,7 @@
 use anyhow;
 use core::{editor::Editor, buffer::Buffer};
 
-    // mods
+// mods
 mod core;
 
 fn main() -> anyhow::Result<()> {
