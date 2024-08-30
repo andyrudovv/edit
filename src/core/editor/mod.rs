@@ -14,10 +14,13 @@ use status_bar::StatusBar;
 
 use super::{buffer::Buffer, timer::Timer};
 
+use config::EditorSettings;
+
 // mods
 mod command_bar;
 mod modules;
 mod status_bar;
+mod config;
 
 enum Action {
     // Possible movement actions
