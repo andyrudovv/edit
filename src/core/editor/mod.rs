@@ -47,6 +47,8 @@ enum Mode {
 }
 
 pub struct Editor {
+    set: EditorSettings,
+
     buffer: Buffer,
     viewport_top: u16,
     viewport_left: u16,
@@ -86,6 +88,8 @@ impl Editor {
         let _size = terminal::size().expect("Could not get size of terminal");
 
         Ok(Editor {
+            set: EditorSettings { background_color: (0,0,0) },
+
             buffer: buf,
             viewport_left: 0,
             viewport_top: 0,
@@ -119,6 +123,8 @@ impl Editor {
     // main loop of logic
     fn mainloop(&mut self) -> anyhow::Result<()> {
         while self.running {
+
+
             self.status_bar.get_editor_info((
                 self.mode.clone(),
                 Box::new(self.buffer.file.clone().unwrap_or("[No Name]".to_string())),
@@ -382,6 +388,26 @@ impl Editor {
                     self.cursor_x = 0;
                 }
                 
+                let cannot_move_down = self.viewport_height()
+                            >= (self.buffer.get_file_lenght() - self.viewport_top as usize);
+
+                        if self.cursor_y + self.viewport_top
+                            < self.buffer.get_file_lenght() as u16 - 1
+                        {
+                            if self.cursor_y
+                                < self.viewport_height() as u16 - self.scrolling_padding
+                                || cannot_move_down
+                            {
+                                self.cursor_y = self.cursor_y.saturating_add(1);
+                            }
+                            if self.cursor_y
+                                == self.viewport_height() as u16 - self.scrolling_padding
+                            {
+                                if !cannot_move_down {
+                                    self.viewport_top = self.viewport_top.saturating_add(1);
+                                }
+                            }
+                        }
             }
             Mode::Normal => {
                 self.cursor_y = self.cursor_y.saturating_add(1);

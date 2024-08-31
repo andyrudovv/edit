@@ -5,15 +5,23 @@ use crossterm::{cursor::MoveTo, style::{self, Color, Stylize}, QueueableCommand}
 // adding all list of modules
 use super::{modules::{get_modules, BarModule}, Editor, Mode};
 
+use super::config::{CommandBarSettings,CommandsBindings};
 
 pub struct CommandBar {
     background_color: (u8, u8, u8),
     pub command: String,
+    set_design: CommandBarSettings,
+    set: CommandsBindings,
 }
 
 impl CommandBar {
     pub fn new() -> Self {
         Self {
+            set_design: CommandBarSettings {
+                background_color: (255, 255, 255),
+                color: (0,0,0),
+            },
+            set: CommandsBindings { quit: String::from(":q"), save: String::from(":w"), edit: String::from(":e") },
             command: ":".to_string(),
             background_color: (255, 255, 255)
         }
