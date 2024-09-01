@@ -1,4 +1,5 @@
 use std::io::{stdout, Stdout};
+use crossterm::style;
 
 use anyhow::Ok;
 use crossterm::{
@@ -15,7 +16,7 @@ use status_bar::StatusBar;
 use super::{buffer::Buffer, timer::Timer};
 
 use config::EditorSettings;
-
+use config::CommandsBindings;
 // mods
 mod command_bar;
 mod modules;
@@ -45,9 +46,9 @@ enum Mode {
     Insert,
     Command,
 }
-
+    
 pub struct Editor {
-    set: EditorSettings,
+    font_color: (u8,u8,u8),
 
     buffer: Buffer,
     viewport_top: u16,
@@ -69,6 +70,10 @@ pub struct Editor {
 
     command_bar: CommandBar,
     scrolling_padding: u16,
+
+    qiut: String,
+    save: String,
+    edit: String
 }
 
 impl Editor {
@@ -87,8 +92,10 @@ impl Editor {
 
         let _size = terminal::size().expect("Could not get size of terminal");
 
+        let settings = EditorSettings::init();
+        let settings_bind = CommandsBindings::init();
         Ok(Editor {
-            set: EditorSettings { background_color: (0,0,0) },
+            font_color: settings.get_info_color().unwrap(),
 
             buffer: buf,
             viewport_left: 0,
@@ -111,6 +118,10 @@ impl Editor {
             timer,
 
             stdout: _stdout,
+
+            qiut: settings_bind.get_info_quit().unwrap(),
+            save: settings_bind.get_info_save().unwrap(),
+            edit: settings_bind.get_info_edit().unwrap(),
         })
     }
 
@@ -254,6 +265,15 @@ impl Editor {
     fn handle_changing(&mut self, v: char) -> anyhow::Result<()> {
         match self.mode {
             Mode::Insert => {
+                let mut v1:String = v.to_string();
+                match v {
+                    '(' => v1 = "()".to_string(),
+                    '{' => v1 = "{}".to_string(),
+                    '[' => v1 = "[]".to_string(),
+                    '\'' => v1 = "''".to_string(),
+                    '"' => v1 = "\"\"".to_string(),
+                    _ => {}
+                }
                 let mut new_line = String::new();
                 let editable_line_index = (self.cursor_y + self.viewport_top) as usize;
                 let old_line = self.buffer.lines[editable_line_index].clone();
@@ -268,14 +288,14 @@ impl Editor {
                     let unchanged_right_part = &old_line[self.cursor_x as usize..old_line.len()];
 
                     new_line.push_str(unchanged_left_part);
-                    new_line.push(v);
+                    new_line.push_str(&v1);
                     new_line.push_str(unchanged_right_part);
                 } /*else if self.cursor_x as usize == old_line.len() + 1 {
                     new_line.push_str(&old_line);
                     new_line.push(v);
                     new_line.push('2');
                 } */else {
-                    new_line.push(v);
+                    new_line.push_str(&v1);
                     new_line.push_str(&old_line);
                 }
 
@@ -284,7 +304,10 @@ impl Editor {
                 self.cursor_x = self.cursor_x.saturating_add(1);
             }
             Mode::Command => {
+
                 self.cursor_x = self.command_bar.command.len() as u16 + 1;
+                self.stdout
+                        .queue(MoveTo(self.cursor_x, self.cursor_y))?;
                 // add char to command in command mode
                 self.command_bar.command.push(v);
             }
@@ -418,13 +441,13 @@ impl Editor {
 
     fn execute_command(&mut self, command: String) -> anyhow::Result<()> {
         let _command = command.trim().to_string();
-        if _command == ":q".to_string() {
+        if _command == self.qiut {
             self.running = false;
         }
-        else if _command == ":w".to_string() {
+        else if _command == self.save {
             self.buffer.save()?;
         }
-        else if _command.starts_with(":w") {
+        else if _command.starts_with(&self.save) {
             let c = _command.clone().trim().to_string();
             let splitted_command = c.split(' ');
             let splitted_command_vec: Vec<&str> = splitted_command.collect();
@@ -434,7 +457,7 @@ impl Editor {
                 self.buffer.save_by_name(nfn)?;
             }
         }
-        else if _command.starts_with(":e") {
+        else if _command.starts_with(&self.edit) {
             let c = _command.clone().trim().to_string();
             let splitted_command = c.split(' ');
             let splitted_command_vec: Vec<&str> = splitted_command.collect();
@@ -484,7 +507,13 @@ impl Editor {
             if i < file_len || i as i32 - 1 < self.cursor_y.into() && self.mode != Mode::Command{
                 self.stdout
                     .queue(MoveTo(0, i as u16))?
-                    .queue(Print(format!("{}",number_line.clone().unwrap())))?;
+                    .queue(style::PrintStyledContent(
+                    format!("{}",number_line.clone().unwrap())
+                    .with(Color::Rgb { 
+                        r: self.font_color.0, 
+                        g: self.font_color.1, 
+                        b: self.font_color.2 
+                    })))?;
             }
             if i < file_len {
                 line = match self.viewport_line(i as u16) {
@@ -495,7 +524,12 @@ impl Editor {
             let w = self.viewport_width();
             self.stdout
                 .queue(MoveTo(file_len.to_string().len() as u16+1, i as u16))?
-                .queue(Print(format!("{line:<width$}", width = w as usize)))?;
+                .queue(style::PrintStyledContent(
+                    format!("{line:<width$}", width = w as usize).with(Color::Rgb { 
+                        r: self.font_color.0, 
+                        g: self.font_color.1, 
+                        b: self.font_color.2 
+                    })))?;
         }
         //self.stdout.queue(MoveTo(0, self.size.1-2))?;
         Ok(())

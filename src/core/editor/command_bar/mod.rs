@@ -9,21 +9,18 @@ use super::config::{CommandBarSettings,CommandsBindings};
 
 pub struct CommandBar {
     background_color: (u8, u8, u8),
+    font_color: (u8, u8, u8),
     pub command: String,
-    set_design: CommandBarSettings,
-    set: CommandsBindings,
 }
 
 impl CommandBar {
     pub fn new() -> Self {
+        let settings = CommandBarSettings::init();
+        
         Self {
-            set_design: CommandBarSettings {
-                background_color: (255, 255, 255),
-                color: (0,0,0),
-            },
-            set: CommandsBindings { quit: String::from(":q"), save: String::from(":w"), edit: String::from(":e") },
             command: ":".to_string(),
-            background_color: (255, 255, 255)
+            background_color: settings.get_info_backcolor().unwrap(),
+            font_color: settings.get_info_color().unwrap(),
         }
     }
 
@@ -49,9 +46,9 @@ impl CommandBar {
                     b: self.background_color.2 
                 })
                 .with(Color::Rgb { 
-                    r: 102, 
-                    g: 0, 
-                    b: 51 
+                    r: self.font_color.0, 
+                    g: self.font_color.1, 
+                    b: self.font_color.2 
                 })
             ))?;
         _stdout.flush()?;
