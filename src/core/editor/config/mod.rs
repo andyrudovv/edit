@@ -21,7 +21,7 @@ pub struct CommandsBindings {
 impl EditorSettings {
     pub fn init() -> Self{
         let strings = 
-        match std::fs::read_to_string("edit.conf") {
+        match std::fs::read_to_string("~/.config/edit/edit.conf") {
             Ok(v) => {v},
             Err(_) => return Self{
                 font_color: (255,255,255),
@@ -55,7 +55,7 @@ impl StatusBarSettings {
     pub fn init() -> Self{
         
         let strings = 
-        match std::fs::read_to_string("edit.conf") {
+        match std::fs::read_to_string("~/.config/edit/edit.conf") {
             Ok(v) => {v},
             Err(_) => return Self{
                 background_color: (255,204,229),
@@ -98,7 +98,7 @@ impl StatusBarSettings {
 impl CommandBarSettings {
     pub fn init() -> Self{
         let strings = 
-        match std::fs::read_to_string("edit.conf") {
+        match std::fs::read_to_string("~/.config/edit/edit.conf") {
             Ok(v) => {v},
             Err(_) => return Self{
                 background_color: (255,255,255),
@@ -146,7 +146,7 @@ impl CommandsBindings {
     pub fn init() -> Self{
         
         let strings = 
-        match std::fs::read_to_string("edit.conf") {
+        match std::fs::read_to_string("~/.config/edit/edit.conf") {
             Ok(v) => {v},
             Err(_) => return Self{
                 quit: String::from(":q"),
