@@ -81,8 +81,6 @@ impl Buffer {
 
         std::fs::write(filename, whole_content)?;
 
-
-        
         Ok(())
     }
 }
