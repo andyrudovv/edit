@@ -149,15 +149,15 @@ impl CommandsBindings {
         match std::fs::read_to_string("edit.conf") {
             Ok(v) => {v},
             Err(_) => return Self{
-                quit: String::from("q"),
-                save: String::from("w"),
-                edit: String::from("e")
+                quit: String::from(":q"),
+                save: String::from(":w"),
+                edit: String::from(":e")
             }
         };
         let lines:Vec<String> = strings.lines().map(|x| x.to_string()).collect();
-        let mut custom_quit = String::from("q");
-        let mut custom_save = String::from("w");
-        let mut custom_edit = String::from("e");
+        let mut custom_quit = String::from(":q");
+        let mut custom_save = String::from(":w");
+        let mut custom_edit = String::from(":e");
         for i in lines {
             if i.starts_with("cmd_quit"){
                 let temp:Vec<String>= i.split('=').map(|x| x.trim().to_string()).collect();
