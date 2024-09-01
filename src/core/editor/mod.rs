@@ -239,15 +239,11 @@ impl Editor {
                     new_line.push_str(unchanged_left_part);
                     new_line.push_str("    ");
                     new_line.push_str(unchanged_right_part);
-                } /*else if self.cursor_x as usize == old_line.len() + 1 {
-                    new_line.push_str(&old_line);
-                    new_line.push_str("    ");
-                } */else {
+                } else {
                     new_line.push_str("    ");
                     new_line.push_str(&old_line);
                 }
 
-                //self.stdout.queue(Print(v))?;
                 self.buffer.lines[editable_line_index] = new_line;
                 self.cursor_x = self.cursor_x.saturating_add(4);
             },
@@ -290,16 +286,11 @@ impl Editor {
                     new_line.push_str(unchanged_left_part);
                     new_line.push_str(&v1);
                     new_line.push_str(unchanged_right_part);
-                } /*else if self.cursor_x as usize == old_line.len() + 1 {
-                    new_line.push_str(&old_line);
-                    new_line.push(v);
-                    new_line.push('2');
-                } */else {
+                } else {
                     new_line.push_str(&v1);
                     new_line.push_str(&old_line);
                 }
 
-                //self.stdout.queue(Print(v))?;
                 self.buffer.lines[editable_line_index] = new_line;
                 self.cursor_x = self.cursor_x.saturating_add(1);
             }
@@ -352,13 +343,7 @@ impl Editor {
 
                     self.buffer.lines[editable_line_index] = new_line;
                     self.cursor_x = self.cursor_x.saturating_sub(1);
-                } /*else if self.cursor_x as usize == old_line.len() + 1 {
-                    new_line.push_str(&old_line[0..self.cursor_x as usize]);
-
-                    self.buffer.lines[editable_line_index] = new_line;
-                    self.cursor_x = self.cursor_x.saturating_sub(1);
-                
-                } */else {
+                } else {
                     if self.cursor_y > 0 {
                         let previous_line = self.buffer.lines[editable_line_index-1].clone();
                         new_line.push_str(&previous_line);
@@ -531,7 +516,6 @@ impl Editor {
                         b: self.font_color.2 
                     })))?;
         }
-        //self.stdout.queue(MoveTo(0, self.size.1-2))?;
         Ok(())
     }
 

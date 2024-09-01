@@ -1,4 +1,4 @@
-use std::{borrow::BorrowMut, io::{Stdout, Write}};
+use std::io::{Stdout, Write};
 
 use crossterm::{cursor::MoveTo, style::{self, Color, Stylize}, QueueableCommand};
 

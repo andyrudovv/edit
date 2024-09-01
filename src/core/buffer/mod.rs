@@ -1,5 +1,3 @@
-pub mod rust_parser;
-
 pub struct Buffer {
     pub file: Option<String>,
     pub lines: Vec<String>
@@ -86,18 +84,5 @@ impl Buffer {
 
         
         Ok(())
-    }
-
-    fn get_extension_from_filename(&self) -> &str {
-        let _file = self.file.clone().take().unwrap();
-
-        "rs"
-    }
-
-    fn parse(&self) {
-        let extension = self.get_extension_from_filename();
-        if extension == "rs" {
-            rust_parser::parse(&self.lines);
-        }
     }
 }
