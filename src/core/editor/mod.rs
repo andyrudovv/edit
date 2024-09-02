@@ -143,9 +143,13 @@ impl Editor {
             // drawings
             self.draw(self.size)?;
             self.stdout.flush()?;
-
-            self.stdout
-                .queue(MoveTo(self.cursor_x as u16 + self.buffer.get_file_lenght().to_string().len() as u16+1, self.cursor_y.into()))?; // start cursor
+            if self.mode != Mode::Command {
+                self.stdout
+                    .queue(MoveTo(self.cursor_x as u16 + self.buffer.get_file_lenght().to_string().len() as u16+1, self.cursor_y.into()))?; // start cursor
+            } else {
+                self.stdout
+                    .queue(MoveTo(self.command_bar.command.len() as u16 , self.size.1-1))?; 
+            }
             self.stdout.flush()?; // output sync with Stdout
 
             if let Some(action) = self.handel_event(read()?)? {
