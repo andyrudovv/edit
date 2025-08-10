@@ -2,6 +2,8 @@ use std::io::Stdout;
 
 use super::BarModule;
 
+use super::Info;
+
 pub struct CurrentFileModule {
     path: String,
     file: String,
@@ -20,8 +22,8 @@ impl BarModule for CurrentFileModule {
         self.get_path()
     }
     
-    fn get_editor_info(&mut self, info: (crate::core::editor::Mode, &String)) {
-        self.file = info.1.clone();
+    fn get_editor_info(&mut self, info: Info) {
+        self.file = *info.1.clone();
     }
 }
 

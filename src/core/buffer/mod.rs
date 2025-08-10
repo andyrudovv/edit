@@ -1,4 +1,3 @@
-
 pub struct Buffer {
     pub file: Option<String>,
     pub lines: Vec<String>
@@ -6,16 +5,82 @@ pub struct Buffer {
 
 impl Buffer {
     pub fn from_file(file: Option<String>) -> Self {
-        let lines = match &file {
+        let file_name = file;
+        let lines = match &file_name {
             Some(file) => 
-                std::fs::read_to_string(file)
-                .unwrap()
-                .lines()
-                .map(|s| s.to_string())
-                .collect(),
-            None => vec![]
+                {
+                    let strings = std::fs::read_to_string(file);
+
+                    match strings {
+                        Ok(str) => str.lines().map(|s| s.to_string()).collect(),
+                        Err(_) => {
+                            vec![String::new()]
+                        }
+                    }
+                },
+            None => vec![String::new()]
         };
 
-        Self {file, lines}
+        Self {
+            file:file_name, 
+            lines
+        }
+    }
+
+    pub fn load_file(&mut self, filename: Option<&str>) -> anyhow::Result<()> {
+        let lines = match filename {
+            Some(file) => 
+            {
+                let strings = std::fs::read_to_string(file);
+
+                match strings {
+                    Ok(str) => str.lines().map(|s| s.to_string()).collect(),
+                    Err(_) => {
+                        vec![String::new()]
+                    }
+                }
+            },
+            None => vec![String::new()]
+        };
+
+        self.file = Some(filename.unwrap().trim().to_string());
+        self.lines = lines;
+
+        Ok(())
+    }
+
+    pub fn get(&self, line: usize) -> Option<String> {
+        if self.lines.len() >= line {
+            return Some(self.lines[line].clone());
+        }
+        None
+    }
+
+    pub fn get_file_lenght(&self) -> usize {
+        self.lines.len()
+    }
+
+    pub fn save(&self) -> anyhow::Result<()> {
+        let mut whole_content = String::new();
+        for line in self.lines.iter() {
+            whole_content.push_str(line);
+            whole_content.push('\n');
+        }
+
+        std::fs::write(self.file.clone().unwrap(), whole_content)?;
+
+        Ok(())
+    }
+
+    pub fn save_by_name(&self, filename: &str) -> anyhow::Result<()>{
+        let mut whole_content = String::new();
+        for line in self.lines.iter() {
+            whole_content.push_str(line);
+            whole_content.push('\n');
+        }
+
+        std::fs::write(filename, whole_content)?;
+
+        Ok(())
     }
 }

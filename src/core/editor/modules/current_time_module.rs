@@ -2,6 +2,7 @@ use std::io::Stdout;
 use chrono::prelude::*;
 
 use super::BarModule;
+use super::Info;
 use super::Rgb; // Rgb = (u8, u8, u8)
 
 pub struct CurrentTimeModule {
@@ -23,7 +24,7 @@ impl BarModule for CurrentTimeModule {
         self.get_time_string()
     }
     
-    fn get_editor_info(&mut self, info: (crate::core::editor::Mode, &String)) {
+    fn get_editor_info(&mut self, info: Info) {
     }
 }
 

@@ -1,9 +1,11 @@
-use std::{borrow::BorrowMut, io::{Stdout, Write}};
+use std::io::{Stdout, Write};
 
 use crossterm::{cursor::MoveTo, style::{self, Color, Stylize}, QueueableCommand};
 
 // adding all list of modules
-use super::{modules::{get_modules, BarModule}, Editor, Mode};
+use super::modules::{get_modules, BarModule, Info};
+
+use super::config::StatusBarSettings;
 
 #[derive(Clone, Copy)]
 pub enum Side {
@@ -12,7 +14,7 @@ pub enum Side {
 }
 
 pub struct StatusBar {
-    sepatator: &'static str,
+    sepatator: String,
     modules: Vec<Box<dyn BarModule>>,
     side: Side,
 
@@ -21,11 +23,12 @@ pub struct StatusBar {
 
 impl StatusBar {
     pub fn new() -> Self {
+        let settings = StatusBarSettings::init();
         Self {
-            sepatator: "◢◤", 
+            sepatator: settings.get_info_separator().unwrap(),
             modules: get_modules(), 
             side: Side::Bottom,
-            background_color: (255, 204, 229)
+            background_color: settings.get_info_backcolor().unwrap()
         }
     }
 
@@ -36,7 +39,7 @@ impl StatusBar {
             let displayed_string = module.give_display();
             bar.push_str(&displayed_string.as_str());
             bar.push(' ');
-            bar.push_str(self.sepatator);
+            bar.push_str(&self.sepatator);
             bar.push(' ');
         }
     
@@ -87,9 +90,10 @@ impl StatusBar {
         self.background_color = new_color.clone();
     }
 
-    pub fn get_editor_info(&mut self, info: (Mode, &String)) {
+
+    pub fn get_editor_info(&mut self, info: Info) {
         for module in self.modules.iter_mut(){
-            module.get_editor_info(info);
+            module.get_editor_info((info.0, info.1.clone()));
         }
     }
 

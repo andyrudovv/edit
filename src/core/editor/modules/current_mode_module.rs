@@ -3,6 +3,7 @@ use std::io::Stdout;
 use crate::core::editor::Mode;
 
 use super::BarModule;
+use super::Info;
 
 pub struct CurrentModeModule {
     enable: bool,
@@ -21,7 +22,7 @@ impl BarModule for CurrentModeModule {
         self.get_mode_string()
     }
     
-    fn get_editor_info(&mut self, info: (crate::core::editor::Mode, &String)) {
+    fn get_editor_info(&mut self, info: Info) {
         self.current_mode = info.0;
     }
     
